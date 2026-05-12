@@ -1,0 +1,57 @@
+[project]
+name = "shrike7"
+version = "0.1.0"
+description = "On-device Vietnamese voice assistant"
+authors = [{name = "Minh-Thinh Vo", email = "vo.m.thinh@gmail.com"}]
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = {text = "MIT"}
+dependencies = [
+    "numpy>=1.26,<3.0",
+    "onnxruntime>=1.20",
+    "transformers>=4.45",
+    "librosa>=0.10",
+    "soundfile>=0.12",
+    "sounddevice>=0.5",
+    "scipy>=1.13",
+    "tqdm>=4.66",
+    "rich>=13.7",        # pretty terminal output for the metrics logger
+    "click>=8.1",        # CLI framework
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.7",
+    "ipython>=8.0",
+    "jupyter>=1.0",
+]
+llm = [
+    "llama-cpp-python>=0.3.0",  # for D2
+]
+eval = [
+    "jiwer>=3.0",        # Word Error Rate
+    "datasets>=3.0",     # HuggingFace datasets (Common Voice VI)
+    "matplotlib>=3.9",
+]
+
+[project.scripts]
+shrike-7 = "shrike7.cli:main"
+
+[tool.uv]
+package = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+ignore = ["E501"]  # line too long — let formatter handle
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["shrike7"]
