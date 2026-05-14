@@ -17,6 +17,7 @@ dependencies = [
     "tqdm>=4.66",
     "rich>=13.7",        # pretty terminal output for the metrics logger
     "click>=8.1",        # CLI framework
+    "huggingface-hub>=1.14.0",
 ]
 
 [project.optional-dependencies]

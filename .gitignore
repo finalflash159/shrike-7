@@ -23,6 +23,9 @@ eval/results/
 benchmarks/raw/
 *.csv
 
+# Data artifacts
+data/
+
 # Runtime artifacts
 runs/
 logs/

@@ -1,1 +1,1 @@
-# 🦅 Shrike-7
+# Shrike-7
