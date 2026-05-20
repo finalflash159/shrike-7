@@ -26,6 +26,12 @@ benchmarks/raw/
 # Data artifacts
 data/
 
+# Notebook artifacts
+.ipynb_checkpoints/
+notebooks/outputs/
+notebooks/runs/
+notebooks/artifacts/
+
 # Runtime artifacts
 runs/
 logs/
