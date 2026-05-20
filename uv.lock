@@ -2566,6 +2566,7 @@ dependencies = [
     { name = "silero-vad" },
     { name = "sounddevice" },
     { name = "soundfile" },
+    { name = "torchcodec" },
     { name = "tqdm" },
     { name = "transformers" },
 ]
@@ -2607,6 +2608,7 @@ requires-dist = [
     { name = "silero-vad", specifier = ">=6.2.1" },
     { name = "sounddevice", specifier = ">=0.5" },
     { name = "soundfile", specifier = ">=0.12" },
+    { name = "torchcodec", specifier = ">=0.12.0" },
     { name = "tqdm", specifier = ">=4.66" },
     { name = "transformers", specifier = ">=4.45" },
 ]
@@ -2832,6 +2834,21 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/78/28/c7adc053039f286c2aca0038b766cbe3294e66fec6b29a820e95128f9ede/torchaudio-2.11.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:bc653defca1c16154398517a1adc98d0fb7f1dd08e58ced217558d213c2c6e29", size = 1626670, upload-time = "2026-03-23T18:13:42.162Z" },
     { url = "https://files.pythonhosted.org/packages/88/d8/d6d0f896e064aa67377484efef4911cdcc07bce2929474e1417cc0af18c2/torchaudio-2.11.0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:6503c0bdb29daf2e6281bb70ea2dfe2c3553b782b619eb5d73bdadd8a3f7cecf", size = 1771992, upload-time = "2026-03-23T18:13:33.188Z" },
     { url = "https://files.pythonhosted.org/packages/23/a8/941277ecc39f7a0a169d554302a1f1afd87c1d94a8aec828891916cea59a/torchaudio-2.11.0-cp312-cp312-win_amd64.whl", hash = "sha256:478110f981e5d40a8d82221732c57a56c85a1d5895fb8fe646e86ee15eded3bd", size = 328663, upload-time = "2026-03-23T18:13:19.218Z" },
+]
+
+[[package]]
+name = "torchcodec"
+version = "0.12.0"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/38/ee/089066da6a2c984a4ddf2e136434afea7d8b4db7285e2a2bf44394efffb2/torchcodec-0.12.0-cp311-cp311-macosx_14_0_arm64.whl", hash = "sha256:e5882a3eac816eb088cb4bac071496b64fb8330d7286646981e541c14fe3c123", size = 4336638, upload-time = "2026-05-14T19:56:42.615Z" },
+    { url = "https://files.pythonhosted.org/packages/00/76/8902ad6d38623409a382755bf700d6d9d1b1f4978bee476ee0ad95dee80d/torchcodec-0.12.0-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:38ea5414f38f63b760459d0853c6f5e1ae82c1273d7597f392ede095be4f7b5f", size = 2471598, upload-time = "2026-05-14T19:56:44.53Z" },
+    { url = "https://files.pythonhosted.org/packages/15/d1/7034eae8e39bfe85da9f73a13ef13f29367e7276e79a2c129084e1f58fe9/torchcodec-0.12.0-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:266f29972e795d347b716d2743d890fc559a94727226b23a7af03dd0c06547cb", size = 2417023, upload-time = "2026-05-14T19:56:46.428Z" },
+    { url = "https://files.pythonhosted.org/packages/c7/be/6f8040e117e1680da5fd596d4fa19b246dfd14c1c7f3923bd2efe58d36dc/torchcodec-0.12.0-cp311-cp311-win_amd64.whl", hash = "sha256:88b4ded784fc73d8831ff0fd6553b10c217e138202e938a1bddb3be3c0d87567", size = 2124774, upload-time = "2026-05-14T19:56:48.291Z" },
+    { url = "https://files.pythonhosted.org/packages/1b/f0/c2f0267144813f4d84b2ded95685059ed902be14334118e0f3aa1ba12cff/torchcodec-0.12.0-cp312-cp312-macosx_14_0_arm64.whl", hash = "sha256:96ae2ea0279cfaf35e81a6b65360dd0282c6d7fa49f95c42092f22e2b957b0fe", size = 4503042, upload-time = "2026-05-14T19:56:50.25Z" },
+    { url = "https://files.pythonhosted.org/packages/0c/e6/f038c25eab9d6310516eee43f232a51b34bc0221c25368faaedcabc21e83/torchcodec-0.12.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:051ce23c36cc16fe559254e131b5f8595a4ea30c6243f4b283e0cfb95ece05a0", size = 2483863, upload-time = "2026-05-14T19:56:51.771Z" },
+    { url = "https://files.pythonhosted.org/packages/11/c7/85d2a991d411d689202f8e493737043d97a7ab3aa2f1bb2b032b05a251aa/torchcodec-0.12.0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:c8f93c8b571c9f1ee583306a119a93b6c81e3e6d27bdfb9b5476fdc2850910c6", size = 2434579, upload-time = "2026-05-14T19:56:53.384Z" },
+    { url = "https://files.pythonhosted.org/packages/c4/df/f9995760e90ed768c1a1788121820879e00c81239fec476668e2823b6ce5/torchcodec-0.12.0-cp312-cp312-win_amd64.whl", hash = "sha256:ab4b986de2a2dee68e863980f6240dce45a0c0bc868cca9c0299ac5eca160f04", size = 2129737, upload-time = "2026-05-14T19:56:54.971Z" },
 ]
 
 [[package]]

@@ -15,11 +15,12 @@ dependencies = [
     "sounddevice>=0.5",
     "scipy>=1.13",
     "tqdm>=4.66",
-    "rich>=13.7",        # pretty terminal output for the metrics logger
-    "click>=8.1",        # CLI framework
+    "rich>=13.7", # pretty terminal output for the metrics logger
+    "click>=8.1", # CLI framework
     "huggingface-hub>=1.14.0",
     "llama-cpp-python>=0.3.0",
     "silero-vad>=6.2.1",
+    "torchcodec>=0.12.0",
 ]
 
 [project.optional-dependencies]
