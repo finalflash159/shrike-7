@@ -72,10 +72,13 @@ def n_gram_repetition(text: str, n: int = 3) -> float:
 def check_heuristics(
     text: str,
     speech_duration_ms: float,
-    repetition_thresh: float = 0.50,
-    ngram_repetition_thresh: float = 0.45,
+    # Defaults calibrated from p99 + 15% margin on 200 FLEURS vi_vn samples
+    # (see data/asr/threshold_calibration.json). Re-run local.calibrate_thresholds
+    # after any dataset change. Conservative rounding leaves ~1pp headroom.
+    repetition_thresh: float = 0.35,
+    ngram_repetition_thresh: float = 0.12,
     min_speech_for_long_text_ms: float = 500,
-    chars_per_100ms_max: float = 8.0,
+    chars_per_100ms_max: float = 2.5,
 ) -> HeuristicCheck:
     """Multi-rule hallucination check. Returns the first matching reason.
 
