@@ -23,6 +23,11 @@ class ASRResult:
 
 class VietnameseASR:
     DEFAULT_MODEL_DIR = Path(__file__).resolve().parents[2] / "models" / "phowhisper-tiny-onnx"
+    ENCODER_FILENAME = "encoder_model.onnx"
+    DECODER_FILENAME = "decoder_model.onnx"
+    BACKEND = "onnxruntime"
+    DECODER_VARIANT = "decoder_model_no_kv_cache"
+    DECODE_STRATEGY = "greedy"
     SAMPLING_RATE = 16000
 
     def __init__(
@@ -46,21 +51,21 @@ class VietnameseASR:
         self.providers = providers or ["CPUExecutionProvider"]
 
         self.onnx_dir = self.model_dir / "onnx"
-        encoder_path = self.onnx_dir / "encoder_model.onnx"
-        decoder_path = self.onnx_dir / "decoder_model.onnx"
+        self.encoder_path = self.onnx_dir / self.ENCODER_FILENAME
+        self.decoder_path = self.onnx_dir / self.DECODER_FILENAME
 
-        missing = [path for path in (encoder_path, decoder_path) if not path.exists()]
+        missing = [path for path in (self.encoder_path, self.decoder_path) if not path.exists()]
         if missing:
             missing_list = "\n".join(str(path) for path in missing)
             raise FileNotFoundError(f"ONNX model files not found:\n{missing_list}")
 
         self.encoder = ort.InferenceSession(
-            str(encoder_path),
+            str(self.encoder_path),
             sess_options=sess_opts,
             providers=self.providers,
         )
         self.decoder = ort.InferenceSession(
-            str(decoder_path),
+            str(self.decoder_path),
             sess_options=sess_opts,
             providers=self.providers,
         )
@@ -78,6 +83,25 @@ class VietnameseASR:
         self.transcribe_token = self.processor.tokenizer.convert_tokens_to_ids("<|transcribe|>")
         self.notimestamps_token = self.processor.tokenizer.convert_tokens_to_ids("<|notimestamps|>")
         self.suppress_tokens, self.begin_suppress_tokens = self._load_suppression_tokens()
+
+    def runtime_metadata(self, max_new_tokens: int = 128) -> dict:
+        """Return the inference identity that BoH artifacts must be tied to."""
+        return {
+            "backend": self.BACKEND,
+            "asr_class": f"{self.__class__.__module__}.{self.__class__.__name__}",
+            "model_dir": str(self.model_dir),
+            "onnx_dir": str(self.onnx_dir),
+            "encoder_filename": self.ENCODER_FILENAME,
+            "decoder_filename": self.DECODER_FILENAME,
+            "decoder_variant": self.DECODER_VARIANT,
+            "decode_strategy": self.DECODE_STRATEGY,
+            "uses_kv_cache": False,
+            "uses_beam_search": False,
+            "max_new_tokens": max_new_tokens,
+            "providers": self.providers,
+            "sampling_rate": self.SAMPLING_RATE,
+            "suppression_tokens_enabled": bool(self.suppress_tokens or self.begin_suppress_tokens),
+        }
 
     def _load_suppression_tokens(self) -> tuple[set[int], set[int]]:
         config_path = self.model_dir / "generation_config.json"
@@ -151,7 +175,7 @@ class VietnameseASR:
 
         return decoder_ids[0].tolist()
 
-    def transcribe(self, audio: np.ndarray) -> ASRResult:
+    def transcribe(self, audio: np.ndarray, max_new_tokens: int = 128) -> ASRResult:
         if audio.ndim != 1:
             raise ValueError(f"Audio must be 1D mono, got shape {audio.shape}")
 
@@ -163,7 +187,7 @@ class VietnameseASR:
         encoder_out = self.encoder.run(None, {"input_features": input_features})
         encoder_hidden = encoder_out[0]
 
-        token_ids = self._decode_greedy(encoder_hidden)
+        token_ids = self._decode_greedy(encoder_hidden, max_new_tokens=max_new_tokens)
         text = self.processor.tokenizer.decode(
             token_ids,
             skip_special_tokens=True,
@@ -180,9 +204,9 @@ class VietnameseASR:
             rtf=rtf,
         )
 
-    def transcribe_file(self, path: str | Path) -> ASRResult:
+    def transcribe_file(self, path: str | Path, max_new_tokens: int = 128) -> ASRResult:
         """Load an audio file and transcribe it."""
         import librosa
 
         audio, _sample_rate = librosa.load(str(path), sr=self.SAMPLING_RATE, mono=True)
-        return self.transcribe(audio)
+        return self.transcribe(audio, max_new_tokens=max_new_tokens)
