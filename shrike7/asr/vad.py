@@ -37,16 +37,20 @@ class SpeechDetector:
         self,
         threshold: float = 0.5,
         min_speech_ms: int = 250,
-        min_silence_ms: int = 100,
-        speech_pad_ms: int = 30,
+        min_silence_ms: int = 500,
+        speech_pad_ms: int = 200,
     ):
         """
         Args:
             threshold: VAD confidence threshold (0-1). Lower = more sensitive.
                 0.5 = default. Lower (0.3) catches whispered speech but more FPs.
             min_speech_ms: discard speech segments shorter than this
-            min_silence_ms: bridge silence gaps shorter than this between speech
-            speech_pad_ms: pad each speech segment with N ms on both sides
+            min_silence_ms: bridge silence gaps shorter than this between speech.
+                Default 500 (Whisper-tuned, voice-command). Silero's own default
+                is 100, faster-whisper uses 2000 for long-form audio.
+            speech_pad_ms: pad each speech segment with N ms on both sides.
+                Default 200 (Whisper-tuned). Silero's own default is 30 —
+                too tight for Whisper, which expects natural sentence boundaries.
         """
         from silero_vad import load_silero_vad, get_speech_timestamps
 
