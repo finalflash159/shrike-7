@@ -26,11 +26,17 @@ Common Voice VI 17.0 test (100 samples), MacBook M4 Pro (CPU 4-thread).
 
 ### Heuristic thresholds (calibrated p99 + 15% margin on 200 FLEURS samples)
 
-| Metric                | p99   | Default (calibrated) |
-| --------------------- | ----- | -------------------- |
-| `repetition_thresh`   | 0.278 | 0.35                 |
-| `ngram_repetition`    | 0.095 | 0.12                 |
-| `chars_per_100ms_max` | 1.567 | 2.50                 |
+Full distribution on 200 FLEURS vi_vn samples:
+
+| Metric             | Mean  | P50   | P90   | P95   | P99   | Max   | Recommended | Default (rounded) |
+| ------------------ | ----- | ----- | ----- | ----- | ----- | ----- | ----------- | ----------------- |
+| unigram_repetition | 0.084 | 0.069 | 0.189 | 0.212 | 0.278 | 0.339 | 0.319       | **0.35**          |
+| 3gram_repetition   | 0.006 | 0.000 | 0.022 | 0.038 | 0.095 | 0.114 | 0.110       | **0.12**          |
+| chars_per_100ms    | 1.092 | 1.082 | 1.346 | 1.427 | 1.567 | 1.751 | 2.350       | **2.50**          |
+
+"Recommended" = p99 × (1 + margin); margin = 0.15 for repetition, 0.50 for density.
+"Default" = recommended rounded up for headroom — hard-coded in
+`shrike7/asr/hallucination_heuristics.py`.
 
 ### BoH construction
 
