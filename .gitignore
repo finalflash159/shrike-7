@@ -55,3 +55,4 @@ Thumbs.db
 .streamlit/secrets.toml
 
 zplan/
+claude_web/
