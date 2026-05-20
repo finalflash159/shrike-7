@@ -239,32 +239,32 @@ voice command). 500/200 ms is the hybrid chosen for sub-second push-to-talk.
 
 **Setup**
 
-| Field             | Value                                                                           |
-| ----------------- | ------------------------------------------------------------------------------- |
-| Speech eval       | 100 first samples of FLEURS vi_vn test split                                    |
-| Noise eval        | 50 first samples of `data/noise_for_boh/manifest.jsonl`                         |
-| Configurations    | 6 (subset toggles of `RobustASR` stages — see table below)                      |
-| BoH snapshot      | **71 phrases** (eval ran before user added 4 more `keep=True` in manual review) |
-| WER normalization | `lower().strip()` on both ref and hyp before `jiwer.wer`                        |
-| CER               | Same input, via `jiwer.cer`                                                     |
-| Hallucination     | `noise_output.strip() != ""` (1 = hallucinated)                                 |
-| Latency           | End-to-end per sample (VAD + ASR + post-processing, excludes model load)        |
-| Warmup            | 1 ASR call before timing                                                        |
-| Providers         | `CoreMLExecutionProvider` → `CPUExecutionProvider` fallback                     |
-| Run date          | 2026-05-20T17:22 UTC                                                            |
-| Output path       | `eval/results/table7_replication.json` (gitignored)                             |
-| Reproducible via  | `uv run python -m local.eval_table7 --n-speech 100 --n-noise 50`                |
+| Field             | Value                                                                    |
+| ----------------- | ------------------------------------------------------------------------ |
+| Speech eval       | 200 first samples of FLEURS vi_vn test split                             |
+| Noise eval        | 50 first samples of `data/noise_for_boh/manifest.jsonl`                  |
+| Configurations    | 6 (subset toggles of `RobustASR` stages — see table below)               |
+| BoH snapshot      | 75 phrases (post manual review)                                          |
+| WER normalization | `lower().strip()` on both ref and hyp before `jiwer.wer`                 |
+| CER               | Same input, via `jiwer.cer`                                              |
+| Hallucination     | `noise_output.strip() != ""` (1 = hallucinated)                          |
+| Latency           | End-to-end per sample (VAD + ASR + post-processing, excludes model load) |
+| Warmup            | 1 ASR call before timing                                                 |
+| Providers         | `CoreMLExecutionProvider` → `CPUExecutionProvider` fallback              |
+| Run date          | 2026-05-20T19:24 UTC                                                     |
+| Output path       | `eval/results/table7_replication.json` (gitignored)                      |
+| Reproducible via  | `uv run python -m local.eval_table7 --n-speech 200 --n-noise 50`         |
 
 **Results**
 
 | Config                | WER    | CER    | Halluc rate | Lat p50 ms | Lat p95 ms |
 | --------------------- | ------ | ------ | ----------- | ---------- | ---------- |
-| (1) Raw ASR           | 24.20% | 12.17% | 100%        | 954        | 2270       |
-| (2) De-loop only      | 24.10% | 12.18% | 100%        | 915        | 2143       |
-| (3) Silero VAD only   | 24.79% | 12.59% | **2%**      | 973        | 2163       |
-| (4) BoH only          | 24.20% | 12.17% | 100%        | 950        | 2271       |
-| (5) De-loop + BoH     | 24.10% | 12.18% | 100%        | 1058       | 2435       |
-| (6) **Full pipeline** | 24.79% | 12.59% | **2%**      | 978        | 2318       |
+| (1) Raw ASR           | 25.45% | 12.52% | 100%        | 1122       | 2500       |
+| (2) De-loop only      | 24.62% | 12.03% | 100%        | 1180       | 2430       |
+| (3) Silero VAD only   | 25.22% | 12.40% | **2%**      | 1162       | 2354       |
+| (4) BoH only          | 25.46% | 12.54% | 100%        | 1156       | 2602       |
+| (5) De-loop + BoH     | 24.63% | 12.05% | 100%        | 1139       | 2512       |
+| (6) **Full pipeline** | 25.24% | 12.42% | **2%**      | 1157       | 2368       |
 
 **Metric caveat**
 
@@ -274,28 +274,31 @@ matched phrases but residual punctuation/words remain non-empty).
 
 A finer measurement on the same eval set:
 
-| BoH effect                         | Value          |
-| ---------------------------------- | -------------- |
-| Noise samples modified by BoH      | 26/50 (52%)    |
-| Noise samples fully emptied by BoH | 21/50 (42%)    |
-| BoH false positives on real speech | **0/100 (0%)** |
+| BoH effect                         | Value            |
+| ---------------------------------- | ---------------- |
+| Noise samples modified by BoH      | 28/50 (56%)      |
+| Noise samples fully emptied by BoH | 22/50 (44%)      |
+| BoH false positives on real speech | **2/200 (1.0%)** |
 
-→ BoH catches 42% of noise hallucinations on its own, with **zero**
-real-speech false positives. The 100% rate in column 4/5 above is a metric
-artifact, not a regression.
+→ BoH catches 44% of noise hallucinations on its own. False-positive rate
+on real speech is 1.0% (2 phrases in BoH still matched in FLEURS speech) —
+borderline acceptable; another manual-review pass on those 2 phrases
+would bring it to 0%.
+
+**1 noise sample escaped the full pipeline** (`noise #49`): output `'thôi.'`
+(= "stop"). Short, looks like valid speech to heuristics. VAD detected
+"speech" in this noise file (likely a transient with speech-like
+spectrum), and heuristics see no repetition / no excess density on a
+single short word. Future fix: add `no_speech_prob` filter (Phase B3).
 
 **Key finding**
 
-Full pipeline reduces hallucination rate from 100% to 2% with only
-**+0.59pp WER** cost on real Vietnamese speech (24.20% → 24.79%). Matches
-the qualitative mitigation pattern from Barański et al. for Whisper-large-v3,
-adapted for Vietnamese PhoWhisper-tiny.
+Full pipeline reduces hallucination rate from 100% to 2% (49/50 noise
+samples correctly rejected) with **−0.21pp WER** on real Vietnamese speech
+(25.45% raw → 25.24% full). Note: full pipeline WER is **slightly lower**
+than raw because de-loop fixes some over-decoded outputs on real speech
+faster than VAD/BoH over-rejection adds error.
 
-**Note on BoH version drift**
-
-The Table VII eval (2026-05-20T17:22 UTC) ran against a 71-phrase BoH
-snapshot. After the eval, the manual review (`local.boh_manual_review`)
-restored 4 phrases that had been previously auto-flipped as false positives,
-giving a current 75-phrase BoH. Re-running `eval_table7` would use the
-75-phrase set. Expected delta: marginal (additional 4 phrases each appear
-≤5 times across 800-noise corpus, low chance of altering the 50-noise sub-sample).
+Matches the qualitative mitigation pattern from Barański et al. for
+Whisper-large-v3 on LibriSpeech-augmented, adapted for Vietnamese
+PhoWhisper-tiny.
