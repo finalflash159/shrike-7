@@ -1,6 +1,11 @@
 # Shrike-7 Colab Notebooks
 
-This folder contains Colab notebooks for Shrike-7 research, data collection, training, calibration, and export work.
+This folder contains notebooks for Shrike-7 research, data collection, training, calibration, and export work.
+
+The D2.5 ASR robustness notebooks can run in two modes:
+
+- **Colab mode**: use Google Drive for heavy artifacts.
+- **Local mode**: skip `google.colab` and write to ignored local folders such as `data/`, `models/`, and `notebooks/outputs/`.
 
 Keep the boundary clear:
 
@@ -42,6 +47,38 @@ drive.mount("/content/drive")
 ```
 
 Then run `notebooks/00_colab_setup.ipynb` to clone/pull the repo, create the Drive layout, and install D2.5 dependencies.
+
+## Local Mac Fallback
+
+When Colab quota is unavailable, start from the repo checkout in VS Code/Jupyter:
+
+```text
+01_noise_data_collection.ipynb
+02_build_vietnamese_boh.ipynb
+```
+
+In both notebooks, keep:
+
+```python
+EXECUTION_MODE = "auto"
+```
+
+or set it explicitly:
+
+```python
+EXECUTION_MODE = "local"
+```
+
+Local mode does not import `google.colab`. It writes artifacts here:
+
+```text
+data/noise_for_boh/
+models/
+notebooks/outputs/{RUN_ID}/
+data/asr/
+```
+
+For local CPU runs, keep `MAX_FILES` small in notebook 02 first, for example `20` to `100`.
 
 ## Artifact Layout
 
