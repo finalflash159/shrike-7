@@ -19,6 +19,7 @@ dependencies = [
     "click>=8.1",        # CLI framework
     "huggingface-hub>=1.14.0",
     "llama-cpp-python>=0.3.0",
+    "silero-vad>=6.2.1",
 ]
 
 [project.optional-dependencies]
