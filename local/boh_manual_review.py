@@ -1,17 +1,15 @@
-"""CLI: apply manual-review decisions to BoH artifact.
+"""CLI: interactive manual review of BoH artifact.
 
-Plan v3 explicitly requires a manual review step between BoH construction
-and runtime use. This CLI codifies the obvious false positives that should
-be marked `keep: false` so the Aho-Corasick matcher skips them.
+Plan v3 requires a manual review pass between BoH construction and runtime.
+Walk through each phrase, decide keep/reject. Auto-saves after every
+decision so Ctrl+C doesn't lose progress.
 
 Usage:
-    uv run python -m local.boh_manual_review
+    uv run python -m local.boh_manual_review                  # review all
+    uv run python -m local.boh_manual_review --unreviewed-only  # only phrases not yet reviewed
+    uv run python -m local.boh_manual_review --start 30        # start from index 30
+    uv run python -m local.boh_manual_review --reset           # flip all keep=True, then review
     uv run python -m local.boh_manual_review --boh-path data/asr/boh/other.json
-    uv run python -m local.boh_manual_review --add-skip "phrase to skip"
-
-The default skip list contains phrases that are clearly legitimate
-Vietnamese speech that PhoWhisper-tiny happens to emit on noise. These
-should NOT block real transcripts.
 """
 
 from __future__ import annotations
@@ -23,100 +21,211 @@ from pathlib import Path
 
 import click
 from rich.console import Console
+from rich.panel import Panel
+from rich.rule import Rule
 
 from local import config as cfg
 
 console = Console()
 
-# Phrases that are clearly legitimate Vietnamese speech and should NOT be
-# blocked even if they appear in noise hallucinations. Curated by manual
-# review of the 800-sample run on 2026-05-21.
-DEFAULT_FALSE_POSITIVES: frozenset[str] = frozenset(
-    {
-        # Confirmation / response
-        "đúng rồi",
-        # Common time/topic openers
-        "hôm nay",
-        # Pronouns / partial pronouns that could be start of valid speech
-        "các em",
-        "chúng",
-        # Common discourse markers
-        "để tôi tìm ra",
-        "chúng ta sẽ thấy",
-        "chúng ta sẽ thấy rằng",
-    }
+DECISION_KEEP = "keep"
+DECISION_REJECT = "reject"
+DECISION_SKIP = "skip"
+DECISION_QUIT = "quit"
+
+PROMPT_HELP = (
+    "[bold]y[/bold]=keep  [bold]n[/bold]=reject (flip to keep=false)  "
+    "[bold]s[/bold]=skip (no change)  [bold]b[/bold]=back  [bold]q[/bold]=save & quit"
 )
+
+
+def render_phrase(item: dict, index: int, total: int) -> None:
+    phrase = item["phrase"]
+    count = item["count"]
+    length = item["length"]
+    keep = item.get("keep", True)
+    reviewed = item.get("reviewed", False)
+    examples = item.get("examples", [phrase])
+
+    body_lines = [
+        f"[bold]Count:[/bold]    {count}",
+        f"[bold]Length:[/bold]   {length} chars",
+        f"[bold]Status:[/bold]   "
+        + ("[green]keep=True[/green]" if keep else "[red]keep=False[/red]")
+        + ("  [dim](reviewed)[/dim]" if reviewed else "  [dim](unreviewed)[/dim]"),
+        "",
+        "[bold]Phrase:[/bold]",
+        f"  [cyan]{phrase}[/cyan]",
+    ]
+    if examples:
+        body_lines.append("")
+        body_lines.append(f"[bold]Examples (first {min(3, len(examples))}):[/bold]")
+        for i, ex in enumerate(examples[:3], 1):
+            ex_short = ex if len(ex) <= 200 else ex[:197] + "..."
+            body_lines.append(f"  {i}. [dim]'{ex_short}'[/dim]")
+
+    console.print(Rule(f"Phrase {index + 1}/{total}"))
+    console.print("\n".join(body_lines))
+    console.print()
+
+
+def prompt_decision() -> str:
+    while True:
+        console.print(PROMPT_HELP)
+        choice = click.prompt(">", default="", show_default=False).strip().lower()
+        if choice in ("y", "yes", "k", "keep"):
+            return DECISION_KEEP
+        if choice in ("n", "no", "r", "reject"):
+            return DECISION_REJECT
+        if choice in ("s", "skip", ""):
+            return DECISION_SKIP
+        if choice in ("b", "back"):
+            return "back"
+        if choice in ("q", "quit", "save"):
+            return DECISION_QUIT
+        console.print("[red]Invalid input. Use y/n/s/b/q[/red]")
+
+
+def save_data(data: dict, path: Path) -> None:
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 @click.command()
 @click.option(
     "--boh-path", default=str(cfg.RUNTIME_BOH_PATH), type=click.Path(),
-    help="BoH JSON file to update.",
+    help="BoH JSON to review.",
 )
 @click.option(
-    "--add-skip", multiple=True,
-    help="Additional phrases to mark keep=false. Repeat flag for multiple.",
+    "--unreviewed-only", is_flag=True,
+    help="Skip phrases that already have reviewed=true in metadata.",
 )
 @click.option(
-    "--also-update", default=None,
-    help="Also update a second copy of the BoH (e.g. data/asr/boh/*.json).",
+    "--start", default=0, type=int, help="Start at this phrase index (0-based).",
 )
-def main(boh_path: str, add_skip: tuple[str, ...], also_update: str | None) -> None:
+@click.option(
+    "--reset", is_flag=True,
+    help="Flip all keep=True and mark unreviewed before starting (fresh review).",
+)
+def main(boh_path: str, unreviewed_only: bool, start: int, reset: bool) -> None:
     path = Path(boh_path)
     if not path.exists():
         raise click.ClickException(f"BoH file not found: {path}")
 
-    skip_phrases = set(DEFAULT_FALSE_POSITIVES) | set(add_skip)
-    console.print(f"Manual-review skip list ({len(skip_phrases)} phrases):")
-    for phrase in sorted(skip_phrases):
-        console.print(f"  - {phrase!r}")
+    # Backup once before any modification
+    backup = path.with_suffix(path.suffix + ".bak")
+    shutil.copy2(path, backup)
+    console.print(f"[dim]Backup → {backup}[/dim]\n")
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    boh = data.get("boh", [])
+    if not boh:
+        raise click.ClickException("BoH list is empty in this file.")
+
+    if reset:
+        for item in boh:
+            item["keep"] = True
+            item.pop("reviewed", None)
+        save_data(data, path)
+        console.print("[yellow]All phrases reset to keep=True, marked unreviewed.[/yellow]\n")
+
+    # Build review index list
+    indices = list(range(start, len(boh)))
+    if unreviewed_only:
+        indices = [i for i in indices if not boh[i].get("reviewed", False)]
+
+    if not indices:
+        console.print("[yellow]No phrases to review (try --reset or --start 0).[/yellow]")
+        return
+
+    console.print(
+        Panel(
+            f"BoH: [bold]{path}[/bold]\n"
+            f"Total phrases: [bold]{len(boh)}[/bold]\n"
+            f"To review:     [bold]{len(indices)}[/bold]"
+            + (" (unreviewed only)" if unreviewed_only else "")
+            + (f", starting at #{start + 1}" if start else "")
+            + "\n\n"
+            + PROMPT_HELP,
+            title="Interactive BoH Manual Review",
+            border_style="cyan",
+        )
+    )
     console.print()
 
-    paths_to_update = [path]
-    if also_update:
-        paths_to_update.append(Path(also_update))
+    counters = {"kept": 0, "rejected": 0, "skipped": 0}
+    cursor = 0
+    quit_requested = False
 
-    # Default behavior: also update the per-model BoH file in data/asr/boh/
-    # so model-specific consumers stay consistent with the runtime alias.
-    if also_update is None and path == cfg.RUNTIME_BOH_PATH:
+    while cursor < len(indices):
+        i = indices[cursor]
+        item = boh[i]
+        render_phrase(item, cursor, len(indices))
+        decision = prompt_decision()
+
+        if decision == DECISION_QUIT:
+            quit_requested = True
+            break
+        if decision == "back":
+            cursor = max(0, cursor - 1)
+            console.print("[yellow]← Back[/yellow]\n")
+            continue
+
+        if decision == DECISION_KEEP:
+            item["keep"] = True
+            item["reviewed"] = True
+            counters["kept"] += 1
+            console.print("[green]✓ kept[/green]\n")
+        elif decision == DECISION_REJECT:
+            item["keep"] = False
+            item["reviewed"] = True
+            counters["rejected"] += 1
+            console.print("[red]✗ rejected (keep=False)[/red]\n")
+        elif decision == DECISION_SKIP:
+            counters["skipped"] += 1
+            console.print("[dim]→ skipped[/dim]\n")
+
+        # Auto-save after every decision (Ctrl+C-safe)
+        save_data(data, path)
+        cursor += 1
+
+    # Log the review session in metadata
+    meta = data.setdefault("metadata", {})
+    review_log = meta.setdefault("manual_review", [])
+    review_log.append(
+        {
+            "applied_at_utc": datetime.now(timezone.utc).isoformat(),
+            "applied_by": "local.boh_manual_review (interactive)",
+            "n_decisions": counters["kept"] + counters["rejected"],
+            "n_kept": counters["kept"],
+            "n_rejected": counters["rejected"],
+            "n_skipped": counters["skipped"],
+            "quit_early": quit_requested,
+        }
+    )
+    save_data(data, path)
+
+    # Also propagate to per-model copy if main file is the runtime alias
+    if path == cfg.RUNTIME_BOH_PATH:
         per_model = cfg.BOH_DIR / "phowhisper_tiny_vi_boh_v1.json"
         if per_model.exists() and per_model != path:
-            paths_to_update.append(per_model)
+            shutil.copy2(path, per_model)
+            console.print(f"[dim]Synced → {per_model.name}[/dim]")
 
-    for target_path in paths_to_update:
-        # Backup before overwriting
-        backup = target_path.with_suffix(target_path.suffix + ".bak")
-        shutil.copy2(target_path, backup)
-
-        data = json.loads(target_path.read_text(encoding="utf-8"))
-        n_flipped = 0
-        for item in data.get("boh", []):
-            if item["phrase"] in skip_phrases and item.get("keep", True):
-                item["keep"] = False
-                n_flipped += 1
-
-        # Note the review in metadata
-        meta = data.setdefault("metadata", {})
-        review_log = meta.setdefault("manual_review", [])
-        review_log.append(
-            {
-                "applied_at_utc": datetime.now(timezone.utc).isoformat(),
-                "applied_by": "local.boh_manual_review",
-                "skip_list_size": len(skip_phrases),
-                "n_phrases_flipped": n_flipped,
-            }
+    n_kept_total = sum(1 for item in boh if item.get("keep", True))
+    n_rejected_total = sum(1 for item in boh if not item.get("keep", True))
+    console.print(
+        Panel(
+            f"This session: kept={counters['kept']}, rejected={counters['rejected']}, "
+            f"skipped={counters['skipped']}"
+            + ("  [yellow](quit early)[/yellow]" if quit_requested else "")
+            + f"\n\nFinal artifact totals: "
+            f"[green]{n_kept_total} kept[/green] / "
+            f"[red]{n_rejected_total} rejected[/red] "
+            f"out of {len(boh)} phrases",
+            title="Review complete",
+            border_style="green",
         )
-
-        target_path.write_text(
-            json.dumps(data, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        kept = sum(1 for item in data["boh"] if item.get("keep", True))
-        console.print(
-            f"[green]✓[/green] {target_path.name}: "
-            f"flipped {n_flipped}/{len(data['boh'])} phrases → {kept} kept "
-            f"(backup: {backup.name})"
-        )
+    )
 
 
 if __name__ == "__main__":
