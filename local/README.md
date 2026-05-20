@@ -1,15 +1,15 @@
 # Local D2.5 Pipeline — Mac M-series CLI
 
-Phiên bản chạy thẳng trên Mac không cần Colab. Logic giống `notebooks/01` + `notebooks/02` nhưng đóng gói thành CLI để chạy tuần tự, không lệ thuộc Google Drive.
+Phiên bản chạy thẳng trên Mac không cần Colab. Mirror của `notebooks/01-04` nhưng đóng gói thành CLI tuần tự, không phụ thuộc Google Drive.
 
 ## Khi nào dùng `local/` thay vì `notebooks/`
 
-| Tình huống                                    | Dùng         |
-| --------------------------------------------- | ------------ |
-| Colab Free hết quota                          | `local/`     |
-| Dataset cần lưu local Mac để rerun nhanh      | `local/`     |
-| Cần benchmark tốc độ trên M4 Pro vs Colab CPU | `local/`     |
-| Cần GPU lớn (Colab T4/A100) cho model >tiny   | `notebooks/` |
+| Tình huống                                    | Dùng                 |
+| --------------------------------------------- | -------------------- |
+| Colab Free hết quota                          | `local/`             |
+| Dataset cần lưu local Mac để rerun nhanh      | `local/`             |
+| Cần benchmark tốc độ trên M4 Pro vs Colab CPU | `local/`             |
+| Fine-tuning model lớn cần GPU thật (T4/A100)  | `notebooks/` (defer) |
 
 ## Setup một lần
 
@@ -19,9 +19,14 @@ Phiên bản chạy thẳng trên Mac không cần Colab. Logic giống `noteboo
 uv sync --extra dev --extra eval
 ```
 
-`silero-vad` và `llama-cpp-python` đã trong base deps.
+`silero-vad`, `pyahocorasick`, `torchcodec` đã trong base deps.
 
-## Pipeline 2 bước
+## Pipeline đầy đủ — 5 CLI tuần tự
+
+```
+collect_noise   →  build_boh        →                         ┐
+download_fleurs →  calibrate_thresh → eval_table7 (benchmark) ┘
+```
 
 ### Bước 1: Thu thập noise (~3-10 phút)
 
@@ -29,11 +34,7 @@ uv sync --extra dev --extra eval
 uv run python -m local.collect_noise
 ```
 
-Mặc định:
-
-- 500 sample từ ESC-50 (stream, loại các category có voice).
-- 300 synthetic (100 silence + 100 white + 100 pink).
-- Tổng target 800.
+Mặc định: 500 ESC-50 (stream, loại category có voice) + 300 synthetic (silence/white/pink). Tổng 800.
 
 Output:
 
@@ -51,17 +52,11 @@ uv run python -m local.collect_noise --force            # rebuild even if manife
 uv run python -m local.collect_noise --seed 7           # different RNG
 ```
 
-### Bước 2: Build BoH (~15-40 phút trên M4 Pro)
+### Bước 2: Build BoH (~10-25 phút trên M4 Pro với CoreML)
 
 ```bash
 uv run python -m local.build_boh
 ```
-
-Mặc định:
-
-- Model: `phowhisper_tiny` (cache vào `models/phowhisper-tiny-onnx/` nếu chưa có).
-- Providers: CoreML + CPU fallback.
-- Max files: all (tất cả file trong manifest).
 
 Output:
 
@@ -75,15 +70,79 @@ notebooks/outputs/{RUN_ID}/config_snapshot.json
 Options thường dùng:
 
 ```bash
-# Smoke run 20 file để verify pipeline trước khi đốt 40 phút
-uv run python -m local.build_boh --max-files 20
-
-# Force CPU only (debug khi nghi ngờ CoreML provider lỗi)
-uv run python -m local.build_boh --providers cpu
-
-# Multi-model run để dựng cross_model_consensus
+uv run python -m local.build_boh --max-files 20        # smoke 20 file
+uv run python -m local.build_boh --providers cpu       # debug, force CPU
 uv run python -m local.build_boh --model phowhisper_tiny --model phowhisper_base \
-    --runtime-model phowhisper_tiny
+    --runtime-model phowhisper_tiny                     # multi-model run
+```
+
+### Bước 3: Tải FLEURS vi speech (~2-3 phút)
+
+Speech eval set tiếng Việt để calibrate threshold + benchmark.
+
+```bash
+uv run python -m local.download_fleurs --target 200
+```
+
+Output:
+
+```
+data/fleurs_vi/wav/*.wav
+data/fleurs_vi/manifest.jsonl
+data/fleurs_vi/fleurs_download_config.json
+```
+
+### Bước 4: Calibrate threshold heuristics (~5 giây)
+
+Đo phân bố `repetition_ratio`, `n_gram_repetition`, `chars_per_100ms` trên FLEURS ground truth. Recommended threshold = p99 + margin.
+
+```bash
+uv run python -m local.calibrate_thresholds
+```
+
+Output:
+
+```
+data/asr/threshold_calibration.json
+```
+
+Sau khi xong, đọc giá trị recommended từ table, paste vào defaults trong [shrike7/asr/hallucination_heuristics.py](../shrike7/asr/hallucination_heuristics.py) hoặc pass kwargs khi gọi `check_heuristics()`.
+
+### Bước 5: Table VII benchmark (~10-30 phút trên M4 Pro)
+
+So sánh 6 config: raw, deloop, vad, boh, deloop_boh, vad_deloop_boh. Đây là **deliverable trung tâm** của D2.5 cho CV.
+
+```bash
+uv run python -m local.eval_table7 --n-speech 50 --n-noise 20
+```
+
+Output:
+
+```
+eval/results/table7_replication.json
+```
+
+Sample output:
+
+```
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━┓
+┃ Config              ┃    WER ┃   CER ┃ Halluc rate ┃ Lat p50 ms ┃ Lat p95 ms ┃
+┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━┩
+│ (1) Raw ASR         │  ~23%  │ ~12%  │  ~30-50%    │  ~700 ms   │  ~1200 ms  │
+│ (3) Silero VAD only │  ~25%  │ ~13%  │   ~0-3%     │  ~500 ms   │  ~1200 ms  │
+│ (6) Full pipeline   │  ~25%  │ ~13%  │   ~0-2%     │  ~500 ms   │  ~1200 ms  │
+└─────────────────────┴────────┴───────┴─────────────┴────────────┴────────────┘
+```
+
+→ Đây là pattern paper Barański et al. ICASSP 2025 chứng minh: VAD là gate chính, BoH catch các residual.
+
+Options:
+
+```bash
+uv run python -m local.eval_table7                                # default 50+20
+uv run python -m local.eval_table7 --n-speech 200 --n-noise 100  # serious run
+uv run python -m local.eval_table7 --configs raw,vad_deloop_boh  # quick A/B
+uv run python -m local.eval_table7 --providers cpu               # force CPU
 ```
 
 ## GPU trên Mac M4 Pro
@@ -94,24 +153,22 @@ ONNX Runtime trên macOS arm64 có 3 provider khả dụng:
 ['CoreMLExecutionProvider', 'AzureExecutionProvider', 'CPUExecutionProvider']
 ```
 
-`local/build_boh.py` ưu tiên `CoreMLExecutionProvider` (dùng Apple Neural Engine + GPU), fallback `CPUExecutionProvider`. Nếu một node ONNX không support CoreML, runtime tự fallback node đó về CPU — không crash.
+CLI ưu tiên `CoreMLExecutionProvider` (Apple Neural Engine + GPU), fallback `CPUExecutionProvider`. Nếu node ONNX không support CoreML, runtime tự fallback node đó về CPU — không crash.
 
-So sánh ước lượng trên 800 sample noise (~3-5s mỗi file):
+So sánh ước lượng trên PhoWhisper-tiny (39M):
 
-| Provider              | Latency/sample | Tổng        |
-| --------------------- | -------------- | ----------- |
-| CPU 4-thread          | ~150-200 ms    | ~30-40 phút |
-| CoreML + CPU fallback | ~60-100 ms     | ~15-25 phút |
+| Provider              | Latency/sample 5s noise | Tổng 800 file |
+| --------------------- | ----------------------- | ------------- |
+| CPU 4-thread          | ~150-200 ms             | ~30-40 phút   |
+| CoreML + CPU fallback | ~60-100 ms              | ~10-25 phút   |
 
-Silero VAD trong `shrike7/asr/vad.py` dùng PyTorch, sẽ tự pick MPS trên M-series nếu code dùng `torch.from_numpy(...).to("mps")` — hiện tại để CPU cho VAD vì 1.8M params trên 5s audio chỉ ~30ms CPU, không cần GPU.
+Silero VAD dùng PyTorch backend (CPU). Vì model VAD chỉ 1.8M params, chạy CPU ~30ms cho 5s audio — không lợi gì khi đẩy lên MPS.
 
-## Sanity checklist sau khi BoH chạy xong
+## Sanity checklist sau khi build_boh chạy xong
 
 ```bash
-# Số file output
 ls data/asr/boh/
 
-# Inspect top 20
 uv run python -c "
 import json
 data = json.load(open('data/asr/boh/phowhisper_tiny_vi_boh_v1.json'))
@@ -129,10 +186,24 @@ Kỳ vọng:
 - Top 30 cover ~70-77% tổng hallucinations.
 - BoH size sau filter count≥2, len≥5: **30-100 phrase** cho 800 sample.
 
-Nếu rate <10% hoặc BoH size <5: pipeline có bug, đừng scale.
+Nếu rate <10% hoặc BoH size <5: pipeline có bug, đừng scale lên 800.
+
+## Notebooks 05, 06 (fine-tuning, ONNX export) — deferred
+
+Plan v3 (`zplan/asr_robustness_colab_plan.md` line 510) explicitly defers:
+
+> Chỉ bắt đầu phần này sau khi pipeline robustness không cần training đã chạy ổn.
+
+Lý do:
+
+- Cần GPU thật (Colab Pro hoặc local NVIDIA), Mac M4 Pro Metal không support PyTorch training nhiều ops.
+- Cần curated command-domain Vietnamese speech (chưa có).
+- D2.5 robustness đã defendable mà không cần tuning — qua Table VII benchmark.
+
+→ Khi nào D2.5 đủ deliver, mới mở 05 + 06.
 
 ## Quan hệ với `notebooks/`
 
 `local/` và `notebooks/02` cùng config (model registry, MIN_COUNT, MIN_CHARS, normalization), output JSON cùng schema. BoH file từ `local/` và `notebooks/02` có thể swap được cho nhau ở runtime — chỉ khác metadata field `execution_mode` (`"local"` vs `"colab"`).
 
-Notebook là canonical workflow theo plan v3 (`zplan/asr_robustness_colab_plan.md`). `local/` là fallback CLI khi Colab không khả dụng.
+Notebooks 03/04 hiện tại là placeholder rỗng — `local/calibrate_thresholds.py` và `local/eval_table7.py` là implementation chính cho 2 deliverable đó. Khi nào cần share workflow trên Colab GPU thì port logic từ `local/` sang notebook.

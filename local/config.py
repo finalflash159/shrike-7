@@ -23,6 +23,15 @@ NOISE_CONFIG_SNAPSHOT = NOISE_ROOT / "noise_collection_config.json"
 ASR_DATA_DIR = DATA_DIR / "asr"
 BOH_DIR = ASR_DATA_DIR / "boh"
 RUNTIME_BOH_PATH = ASR_DATA_DIR / "vi_boh_v1.json"
+THRESHOLD_CALIBRATION_PATH = ASR_DATA_DIR / "threshold_calibration.json"
+
+# Vietnamese speech eval set (FLEURS).
+FLEURS_DIR = DATA_DIR / "fleurs_vi"
+FLEURS_WAV_DIR = FLEURS_DIR / "wav"
+FLEURS_MANIFEST = FLEURS_DIR / "manifest.jsonl"
+
+# Eval outputs.
+EVAL_RESULTS_DIR = REPO_ROOT / "eval" / "results"
 
 # Model cache — gitignored.
 MODELS_DIR = REPO_ROOT / "models"
@@ -116,3 +125,10 @@ MODEL_ALLOW_PATTERNS = [
 # Provider priority on Mac. CoreML first, fall back to CPU.
 # Notebook 02 uses CUDA > CoreML > CPU because it may run on Colab GPU.
 DEFAULT_PROVIDER_PRIORITY = ["CoreMLExecutionProvider", "CPUExecutionProvider"]
+
+# --- FLEURS download config ---
+
+FLEURS_REPO = "google/fleurs"
+FLEURS_LANG = "vi_vn"
+FLEURS_SPLIT = "test"
+FLEURS_DEFAULT_TARGET = 200  # enough for percentile p99 calibration
