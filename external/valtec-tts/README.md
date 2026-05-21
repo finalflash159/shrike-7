@@ -10,11 +10,12 @@ Vietnamese Text-to-Speech with **Multi-Speaker TTS** and **Zero-Shot Voice Cloni
 
 > **Dành cho người dùng Windows** — Tải file `.exe`, chạy trực tiếp, không cần cài đặt Python, không lo lỗi source code!
 
-| Phiên bản | Hệ điều hành | Download |
-|-----------|-------------|----------|
+| Phiên bản             | Hệ điều hành           | Download                                                                                      |
+| --------------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
 | **v1.0.5** (Mới nhất) | Windows 10/11 (64-bit) | [📥 Tải ValtecTTS.exe (394MB)](https://github.com/tronghieuit/valtec-tts/releases/tag/v1.0.5) |
 
 ### ✨ Tính năng Windows App:
+
 - ✅ **Không cần cài đặt Python** — Chạy trực tiếp file `.exe`
 - ✅ **Không lo lỗi source code** — Đã đóng gói sẵn toàn bộ dependencies
 - ✅ **Giao diện đẹp** — Dark mode hiện đại, dễ sử dụng
@@ -23,11 +24,12 @@ Vietnamese Text-to-Speech with **Multi-Speaker TTS** and **Zero-Shot Voice Cloni
 - ✅ **Tốc độ tùy chỉnh** — Điều chỉnh từ 0.5x đến 2.0x
 - ✅ **Nghe thử & Lưu file** — Preview và export audio dễ dàng
 
-###  Ảnh chụp ứng dụng:
+### Ảnh chụp ứng dụng:
 
 ![Valtec TTS Windows App - Giao diện tiếng Việt](assets/app-screenshot.png)
 
 ### 🚀 Hướng dẫn sử dụng:
+
 1. Tải file `ValtecTTS.exe` từ [Releases](https://github.com/tronghieuit/valtec-tts/releases)
 2. Chạy file `.exe` (lần đầu sẽ tự tải model từ HuggingFace — cần kết nối Internet)
 3. Nhập văn bản tiếng Việt → Chọn giọng đọc → Nhấn "Tạo Audio"
@@ -42,11 +44,13 @@ Vietnamese Text-to-Speech with **Multi-Speaker TTS** and **Zero-Shot Voice Cloni
 > **Dành cho mọi hệ điều hành** — Chạy trong Docker, không cần cài đặt Python, cách ly hoàn toàn!
 
 ### Yêu cầu:
+
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) đã cài đặt
 
 ### Cách chạy:
 
 **Cách 1: Dùng docker-compose (Khuyến nghị)**
+
 ```bash
 git clone https://github.com/tronghieuit/valtec-tts.git
 cd valtec-tts
@@ -54,6 +58,7 @@ docker-compose up -d
 ```
 
 **Cách 2: Dùng Docker trực tiếp**
+
 ```bash
 docker build -t valtec-tts .
 docker run -d -p 7860:7860 --name valtec-tts valtec-tts
@@ -62,6 +67,7 @@ docker run -d -p 7860:7860 --name valtec-tts valtec-tts
 Mở trình duyệt: **http://localhost:7860**
 
 ### ✨ Tính năng Docker:
+
 - ✅ **Đa nền tảng** — Windows, macOS, Linux
 - ✅ **Cách ly hoàn toàn** — Không ảnh hưởng hệ thống
 - ✅ **Gradio Web UI** — Giao diện web đẹp, dễ dùng
@@ -84,10 +90,10 @@ Mở trình duyệt: **http://localhost:7860**
 
 ## 🚀 Live Demo — Try it now!
 
-| Demo | Link |
-|------|------|
+| Demo                           | Link                                                                                                                                              |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **🎙️ Zero-Shot Voice Cloning** | [▶️ huggingface.co/spaces/valtecAI-team/valtec-zeroshot-voice-cloning](https://huggingface.co/spaces/valtecAI-team/valtec-zeroshot-voice-cloning) |
-| **🔊 Multi-Speaker TTS** | [▶️ huggingface.co/spaces/valtecAI-team/valtec-vietnamese-tts](https://huggingface.co/spaces/valtecAI-team/valtec-vietnamese-tts) |
+| **🔊 Multi-Speaker TTS**       | [▶️ huggingface.co/spaces/valtecAI-team/valtec-vietnamese-tts](https://huggingface.co/spaces/valtecAI-team/valtec-vietnamese-tts)                 |
 
 > Clone any voice from 3-10 seconds of audio. No GPU required. Try it directly in your browser!
 
@@ -99,24 +105,24 @@ Mở trình duyệt: **http://localhost:7860**
 
 Same text, cloned with 6 different reference voices:
 
-| Reference Voice | Description | Cloned Audio |
-|----------------|-------------|--------------|
-| **Thu Hà** | Soft female voice | [▶️ example_thu_ha.wav](examples/zeroshot/example_thu_ha.wav) |
-| **Minh Đức** | Deep male voice | [▶️ example_minh_duc.wav](examples/zeroshot/example_minh_duc.wav) |
-| **Thanh Tâm** | Young female voice | [▶️ example_thanh_tam.wav](examples/zeroshot/example_thanh_tam.wav) |
-| **Quang Huy** | Young male voice | [▶️ example_quang_huy.wav](examples/zeroshot/example_quang_huy.wav) |
-| **Ngọc Ánh** | Professional female | [▶️ example_ngoc_anh.wav](examples/zeroshot/example_ngoc_anh.wav) |
-| **Hoàng Nam** | Strong male voice | [▶️ example_hoang_nam.wav](examples/zeroshot/example_hoang_nam.wav) |
+| Reference Voice | Description         | Cloned Audio                                                        |
+| --------------- | ------------------- | ------------------------------------------------------------------- |
+| **Thu Hà**      | Soft female voice   | [▶️ example_thu_ha.wav](examples/zeroshot/example_thu_ha.wav)       |
+| **Minh Đức**    | Deep male voice     | [▶️ example_minh_duc.wav](examples/zeroshot/example_minh_duc.wav)   |
+| **Thanh Tâm**   | Young female voice  | [▶️ example_thanh_tam.wav](examples/zeroshot/example_thanh_tam.wav) |
+| **Quang Huy**   | Young male voice    | [▶️ example_quang_huy.wav](examples/zeroshot/example_quang_huy.wav) |
+| **Ngọc Ánh**    | Professional female | [▶️ example_ngoc_anh.wav](examples/zeroshot/example_ngoc_anh.wav)   |
+| **Hoàng Nam**   | Strong male voice   | [▶️ example_hoang_nam.wav](examples/zeroshot/example_hoang_nam.wav) |
 
 ### Multi-Speaker TTS Examples
 
-| Speaker | Region | Gender | Audio |
-|---------|--------|--------|-------|
-| **NF** | Northern | Female | [▶️ example_NF.wav](examples/example_NF.wav) |
-| **SF** | Southern | Female | [▶️ example_SF.wav](examples/example_SF.wav) |
-| **NM1** | Northern | Male | [▶️ example_NM1.wav](examples/example_NM1.wav) |
-| **SM** | Southern | Male | [▶️ example_SM.wav](examples/example_SM.wav) |
-| **NM2** | Northern | Male | [▶️ example_NM2.wav](examples/example_NM2.wav) |
+| Speaker | Region   | Gender | Audio                                          |
+| ------- | -------- | ------ | ---------------------------------------------- |
+| **NF**  | Northern | Female | [▶️ example_NF.wav](examples/example_NF.wav)   |
+| **SF**  | Southern | Female | [▶️ example_SF.wav](examples/example_SF.wav)   |
+| **NM1** | Northern | Male   | [▶️ example_NM1.wav](examples/example_NM1.wav) |
+| **SM**  | Southern | Male   | [▶️ example_SM.wav](examples/example_SM.wav)   |
+| **NM2** | Northern | Male   | [▶️ example_NM2.wav](examples/example_NM2.wav) |
 
 > Clone the repo and listen to files in `examples/` for the best audio quality.
 
@@ -126,29 +132,29 @@ Same text, cloned with 6 different reference voices:
 
 ### Zero-Shot Voice Cloning (74.8M params)
 
-| Component | Parameters | Purpose |
-|-----------|-----------|---------|
-| **Synthesizer** | 56.45M | Voice synthesis |
-| **Speaker Encoder** | 8.03M | Voice identity extraction |
-| **Style Encoder** | 7.80M | Prosody/style extraction |
-| **Prosody Predictor** | 2.52M | F0/energy prediction |
-| **Total** | **74.80M** | **~285 MB (FP32)** |
+| Component             | Parameters | Purpose                   |
+| --------------------- | ---------- | ------------------------- |
+| **Synthesizer**       | 56.45M     | Voice synthesis           |
+| **Speaker Encoder**   | 8.03M      | Voice identity extraction |
+| **Style Encoder**     | 7.80M      | Prosody/style extraction  |
+| **Prosody Predictor** | 2.52M      | F0/energy prediction      |
+| **Total**             | **74.80M** | **~285 MB (FP32)**        |
 
 #### Zero-Shot CPU Benchmark
 
 > Runs entirely on CPU — no GPU needed!
 
-| Input Length | Inference Time | Audio Length | RTF | Speed |
-|-------------|----------------|--------------|-----|-------|
-| Short (16 chars) | **506ms** | 1.07s | 0.475 | **2.1x realtime** |
-| Medium (60 chars) | **1,030ms** | 3.61s | 0.286 | **3.5x realtime** |
-| Long (156 chars) | **2,229ms** | 9.45s | 0.236 | **4.2x realtime** |
+| Input Length      | Inference Time | Audio Length | RTF   | Speed             |
+| ----------------- | -------------- | ------------ | ----- | ----------------- |
+| Short (16 chars)  | **506ms**      | 1.07s        | 0.475 | **2.1x realtime** |
+| Medium (60 chars) | **1,030ms**    | 3.61s        | 0.286 | **3.5x realtime** |
+| Long (156 chars)  | **2,229ms**    | 9.45s        | 0.236 | **4.2x realtime** |
 
 ### Multi-Speaker TTS (57.97M params)
 
-| Mode | Short | Medium | Long |
-|------|-------|--------|------|
-| **CPU** (i5-14500) | 392ms / RTF 0.54 | 854ms / RTF 0.38 | 1,653ms / RTF 0.34 |
+| Mode                   | Short               | Medium              | Long                |
+| ---------------------- | ------------------- | ------------------- | ------------------- |
+| **CPU** (i5-14500)     | 392ms / RTF 0.54    | 854ms / RTF 0.38    | 1,653ms / RTF 0.34  |
 | **CUDA** (RTX 4060 Ti) | **45ms** / RTF 0.06 | **52ms** / RTF 0.02 | **69ms** / RTF 0.01 |
 
 > **RTF (Real-Time Factor)**: Processing time / audio duration. RTF < 1 = faster than realtime.
@@ -270,13 +276,13 @@ Input Text → Vietnamese Phonemizer → Text Encoder → Text Representation
 
 For best results:
 
-| ✅ Good | ❌ Bad |
-|---------|--------|
+| ✅ Good               | ❌ Bad                     |
+| --------------------- | -------------------------- |
 | 3-10 seconds duration | < 2s (poor representation) |
-| Clean, clear speech | Noisy background |
-| Single speaker | Multiple speakers |
-| Neutral emotion | Extreme emotion/shouting |
-| Any language | Music or sound effects |
+| Clean, clear speech   | Noisy background           |
+| Single speaker        | Multiple speakers          |
+| Neutral emotion       | Extreme emotion/shouting   |
+| Any language          | Music or sound effects     |
 
 ```bash
 # Prepare reference audio
@@ -288,14 +294,14 @@ ffmpeg -i input.mp3 -ar 24000 -ac 1 reference.wav
 
 Available in `references/`:
 
-| Voice | File | Description |
-|-------|------|-------------|
-| **Thu Hà** | `thu_ha.wav` | Soft, warm female voice |
-| **Minh Đức** | `minh_duc.wav` | Deep, composed male voice |
-| **Thanh Tâm** | `thanh_tam.wav` | Young, bright female voice |
+| Voice         | File            | Description                 |
+| ------------- | --------------- | --------------------------- |
+| **Thu Hà**    | `thu_ha.wav`    | Soft, warm female voice     |
+| **Minh Đức**  | `minh_duc.wav`  | Deep, composed male voice   |
+| **Thanh Tâm** | `thanh_tam.wav` | Young, bright female voice  |
 | **Quang Huy** | `quang_huy.wav` | Young, energetic male voice |
-| **Ngọc Ánh** | `ngoc_anh.wav` | Professional female anchor |
-| **Hoàng Nam** | `hoang_nam.wav` | Strong, deep male voice |
+| **Ngọc Ánh**  | `ngoc_anh.wav`  | Professional female anchor  |
+| **Hoàng Nam** | `hoang_nam.wav` | Strong, deep male voice     |
 
 > Upload your own reference audio (3-10 seconds, clear speech) to clone any voice.
 
@@ -325,22 +331,22 @@ spk_emb_mixed = alpha * spk_emb_1 + (1 - alpha) * spk_emb_2
 
 ### 5 Vietnamese Voices
 
-| Speaker | Region | Gender | Code |
-|---------|--------|--------|------|
-| **NF** | Northern (Miền Bắc) | Female | `NF` |
-| **SF** | Southern (Miền Nam) | Female | `SF` |
-| **NM1** | Northern (Miền Bắc) | Male | `NM1` |
-| **SM** | Southern (Miền Nam) | Male | `SM` |
-| **NM2** | Northern (Miền Bắc) | Male | `NM2` |
+| Speaker | Region              | Gender | Code  |
+| ------- | ------------------- | ------ | ----- |
+| **NF**  | Northern (Miền Bắc) | Female | `NF`  |
+| **SF**  | Southern (Miền Nam) | Female | `SF`  |
+| **NM1** | Northern (Miền Bắc) | Male   | `NM1` |
+| **SM**  | Southern (Miền Nam) | Male   | `SM`  |
+| **NM2** | Northern (Miền Bắc) | Male   | `NM2` |
 
 ### Parameters
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `speed` | 1.0 | < 1.0 = faster, > 1.0 = slower |
-| `noise_scale` | 0.667 | Voice variability |
-| `noise_scale_w` | 0.8 | Duration variability |
-| `sdp_ratio` | 0.0 | 0 = deterministic, 1 = stochastic |
+| Parameter       | Default | Description                       |
+| --------------- | ------- | --------------------------------- |
+| `speed`         | 1.0     | < 1.0 = faster, > 1.0 = slower    |
+| `noise_scale`   | 0.667   | Voice variability                 |
+| `noise_scale_w` | 0.8     | Duration variability              |
+| `sdp_ratio`     | 0.0     | 0 = deterministic, 1 = stochastic |
 
 ### Model Auto-Download
 
@@ -385,12 +391,12 @@ valtec-tts/
 
 ## 📱 Deployment Options
 
-| Platform | Technology | Size | Offline |
-|----------|-----------|------|---------|
-| **HuggingFace Spaces** | Gradio | Cloud | No |
-| **Edge** | ONNX Runtime | ~165MB | Yes |
-| **Web** | ONNX Runtime Web | ~165MB | Yes |
-| **Android** | ONNX Runtime Mobile | ~185MB | Yes |
+| Platform               | Technology          | Size   | Offline |
+| ---------------------- | ------------------- | ------ | ------- |
+| **HuggingFace Spaces** | Gradio              | Cloud  | No      |
+| **Edge**               | ONNX Runtime        | ~165MB | Yes     |
+| **Web**                | ONNX Runtime Web    | ~165MB | Yes     |
+| **Android**            | ONNX Runtime Mobile | ~185MB | Yes     |
 
 See `deployments/` for detailed guides.
 

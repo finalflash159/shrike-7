@@ -70,24 +70,26 @@ sf.write('output.wav', audio, sample_rate)
 
 ## Command Line Options
 
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `--text` | "Hello..." | Vietnamese text to synthesize |
+| Argument      | Default       | Description                                                |
+| ------------- | ------------- | ---------------------------------------------------------- |
+| `--text`      | "Hello..."    | Vietnamese text to synthesize                              |
 | `--model-dir` | Auto-download | Path to ONNX models (optional, auto-downloads from HF Hub) |
-| `--output` | `output.wav` | Output audio file |
-| `--speaker` | `1` | Speaker ID: 0=NF, 1=SF, 2=NM1, 3=SM, 4=NM2 |
-| `--speed` | `1.0` | Speech speed (>1 slower, <1 faster) |
-| `--device` | `cpu` | Execution device (`cpu` or `cuda`) |
+| `--output`    | `output.wav`  | Output audio file                                          |
+| `--speaker`   | `1`           | Speaker ID: 0=NF, 1=SF, 2=NM1, 3=SM, 4=NM2                 |
+| `--speed`     | `1.0`         | Speech speed (>1 slower, <1 faster)                        |
+| `--device`    | `cpu`         | Execution device (`cpu` or `cuda`)                         |
 
 ## Model Files
 
 ### Auto-Download (Recommended)
+
 Models are automatically downloaded from [HuggingFace Hub](https://huggingface.co/valtecAI-team/valtec-tts-onnx) and cached locally:
 
 - **Windows**: `%LOCALAPPDATA%\valtec_tts\onnx_models\`
 - **Linux/Mac**: `~/.cache/valtec_tts/onnx_models/`
 
 ### Manual Download (Optional)
+
 If you prefer to use local models:
 
 ```bash
@@ -96,6 +98,7 @@ python inference.py --model-dir /path/to/onnx/models
 ```
 
 ### Required Files
+
 The following ONNX files are needed:
 
 ```
@@ -109,13 +112,13 @@ onnx_models/
 
 ## Performance
 
-| Device | Realtime Factor | Memory Usage |
-|--------|-----------------|--------------| 
-| CPU (Intel i7) | ~3x realtime | ~500MB |
-| GPU (RTX 3060) | ~15x realtime | ~1GB |
-| Raspberry Pi 4 | ~0.5x realtime | ~300MB |
+| Device         | Realtime Factor | Memory Usage |
+| -------------- | --------------- | ------------ |
+| CPU (Intel i7) | ~3x realtime    | ~500MB       |
+| GPU (RTX 3060) | ~15x realtime   | ~1GB         |
+| Raspberry Pi 4 | ~0.5x realtime  | ~300MB       |
 
-*Realtime factor > 1 means faster than realtime*
+_Realtime factor > 1 means faster than realtime_
 
 ## Integration Examples
 
@@ -134,11 +137,11 @@ tts = VietnameTTSEdge()  # Auto-downloads models
 def synthesize():
     text = request.json.get('text', '')
     audio, sr = tts.synthesize(text)
-    
+
     buffer = io.BytesIO()
     sf.write(buffer, audio, sr, format='WAV')
     buffer.seek(0)
-    
+
     return send_file(buffer, mimetype='audio/wav')
 
 if __name__ == '__main__':
@@ -168,13 +171,17 @@ for i, text in enumerate(texts):
 ## Troubleshooting
 
 ### OOM Error on GPU
+
 Try using CPU instead:
+
 ```bash
 python inference.py --device cpu
 ```
 
 ### Missing ONNX Models
+
 Ensure all 4 ONNX files exist. The auto-download should handle this, but if it fails:
+
 ```bash
 # Manually download from HuggingFace
 huggingface-cli download valtecAI-team/valtec-tts-onnx --local-dir ./models
@@ -182,6 +189,7 @@ python inference.py --model-dir ./models
 ```
 
 ### Audio Quality Issues
+
 - Adjust `noise_scale` parameter (lower = more stable, higher = more variation)
 - Check input text normalization
 

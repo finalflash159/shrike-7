@@ -10,7 +10,7 @@ Full browser-based TTS using ONNX Runtime Web, no backend server required.
 
 ![Web TTS Demo](../../examples/ValtecTTS%20-%20WEB.mp4)
 
-*Real-time Vietnamese TTS running entirely in browser using ONNX Runtime Web*
+_Real-time Vietnamese TTS running entirely in browser using ONNX Runtime Web_
 
 ## Features
 
@@ -26,12 +26,14 @@ Full browser-based TTS using ONNX Runtime Web, no backend server required.
 ### 1. Download ONNX Models
 
 **Option A: Download from HuggingFace Hub (Recommended)**
+
 ```bash
 # From project root
 huggingface-cli download valtecAI-team/valtec-tts-onnx --local-dir pretrained/onnx
 ```
 
 **Option B: Export from pretrained model**
+
 ```bash
 python export_full_onnx.py  # From project root
 ```
@@ -77,13 +79,13 @@ web/
 
 Models downloaded from [valtecAI-team/valtec-tts-onnx](https://huggingface.co/valtecAI-team/valtec-tts-onnx):
 
-| File | Size | Description |
-|------|------|-------------|
-| `text_encoder.onnx` | ~28 MB | Text encoder network |
-| `duration_predictor.onnx` | ~27 MB | Duration prediction |
-| `flow.onnx` | ~83 MB | Flow network |
-| `decoder.onnx` | ~27 MB | HiFi-GAN decoder |
-| `tts_config.json` | ~10 KB | Config & symbol mapping |
+| File                      | Size   | Description             |
+| ------------------------- | ------ | ----------------------- |
+| `text_encoder.onnx`       | ~28 MB | Text encoder network    |
+| `duration_predictor.onnx` | ~27 MB | Duration prediction     |
+| `flow.onnx`               | ~83 MB | Flow network            |
+| `decoder.onnx`            | ~27 MB | HiFi-GAN decoder        |
+| `tts_config.json`         | ~10 KB | Config & symbol mapping |
 
 **Total: ~165 MB** (first load)
 
@@ -98,24 +100,27 @@ The `vietnamese_g2p.js` file is a JavaScript port of the Python `viphoneme` libr
 
 ## Browser Support
 
-| Browser | Support |
-|---------|---------|
-| Chrome 90+ | ✅ Full |
-| Firefox 90+ | ✅ Full |
-| Edge 90+ | ✅ Full |
-| Safari 15+ | ⚠️ Limited |
+| Browser     | Support    |
+| ----------- | ---------- |
+| Chrome 90+  | ✅ Full    |
+| Firefox 90+ | ✅ Full    |
+| Edge 90+    | ✅ Full    |
+| Safari 15+  | ⚠️ Limited |
 
 ## Troubleshooting
 
 ### Model Loading Error
+
 - Ensure serving via HTTP server (not file://)
 - Check path `../../pretrained/onnx/` exists
 
 ### Audio Not Playing
+
 - Check browser allows autoplay
 - Try clicking page before generating
 
 ### Slow First Load
+
 - Models need to load ~165MB on first run
 - Subsequent loads will be cached by browser
 

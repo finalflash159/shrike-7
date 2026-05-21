@@ -10,7 +10,7 @@ On-device Vietnamese TTS application running directly on Android devices.
 
 ![Android TTS Demo](../../examples/ValtecTTS%20-%20Android.mp4)
 
-*Demonstrating 5-voice Vietnamese TTS on Xiaomi 12S Pro with real-time synthesis*
+_Demonstrating 5-voice Vietnamese TTS on Xiaomi 12S Pro with real-time synthesis_
 
 ## Features
 
@@ -32,12 +32,14 @@ On-device Vietnamese TTS application running directly on Android devices.
 ### 1. Download ONNX Models
 
 **Download from HuggingFace Hub:**
+
 ```bash
 # From project root (valtec-tts/)
 huggingface-cli download valtecAI-team/valtec-tts-onnx --local-dir pretrained/onnx
 ```
 
 **Or export from pretrained model:**
+
 ```bash
 python export_full_onnx.py
 ```
@@ -60,9 +62,11 @@ cp ../../pretrained/onnx/tts_config.json app/src/main/assets/
 ### 4. Build APK
 
 **Via Android Studio:**
+
 - Build > Build Bundle(s) / APK(s) > Build APK(s)
 
 **Via Command Line:**
+
 ```bash
 ./gradlew assembleDebug
 
@@ -119,27 +123,30 @@ implementation 'com.google.android.material:material:1.11.0'
 
 ### Real Device Testing
 
-| Device | Chip | Inference Time | Memory | Status |
-|--------|------|----------------|--------|--------|
-| **Xiaomi 12S Pro** | Snapdragon 8+ Gen 1 | ~200-300ms | ~280MB | ✅ Tested |
-| Flagship (SD 8 Gen 2) | Snapdragon 8 Gen 2 | ~250ms | ~280MB | Estimated |
-| Mid-range (SD 778G) | Snapdragon 778G | ~800ms | ~300MB | Estimated |
-| Budget (SD 662) | Snapdragon 662 | ~2000ms | ~350MB | Estimated |
+| Device                | Chip                | Inference Time | Memory | Status    |
+| --------------------- | ------------------- | -------------- | ------ | --------- |
+| **Xiaomi 12S Pro**    | Snapdragon 8+ Gen 1 | ~200-300ms     | ~280MB | ✅ Tested |
+| Flagship (SD 8 Gen 2) | Snapdragon 8 Gen 2  | ~250ms         | ~280MB | Estimated |
+| Mid-range (SD 778G)   | Snapdragon 778G     | ~800ms         | ~300MB | Estimated |
+| Budget (SD 662)       | Snapdragon 662      | ~2000ms        | ~350MB | Estimated |
 
-*Inference time measured for ~3s audio output*
+_Inference time measured for ~3s audio output_
 
 ## Troubleshooting
 
 ### App Crashes on Launch
+
 - Check that all ONNX models are in `app/src/main/assets/`
 - Verify models are not corrupted
 - Ensure device has sufficient RAM
 
 ### Audio Quality Issues
+
 - Check if device supports 24kHz audio playback
 - Verify ONNX models are the correct versions
 
 ### Build Errors
+
 - Clean and rebuild: `./gradlew clean build`
 - Sync Gradle files in Android Studio
 - Check Android SDK version is 26+
@@ -149,6 +156,7 @@ implementation 'com.google.android.material:material:1.11.0'
 Total APK size with models: **~185 MB**
 
 Breakdown:
+
 - App code & resources: ~20 MB
 - ONNX models: ~165 MB
 
