@@ -73,7 +73,10 @@ class RobustASR:
         asr: VietnameseASR | None = None,
         vad: SpeechDetector | None = None,
         boh: VietnameseBoH | None = None,
-        min_avg_logprob: float = -0.25,
+        # Calibrated by `uv run python -m local.calibrate_asr_confidence`
+        # on 200 FLEURS vi speech samples + 50 non-speech samples:
+        # speech p01=-0.250, noise max=-1.200, midpoint=-0.725.
+        min_avg_logprob: float = -0.725,
         max_compression_ratio: float = 2.4,
     ):
         self.asr = asr if asr is not None else VietnameseASR(num_threads=4)
