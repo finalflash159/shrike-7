@@ -9,7 +9,7 @@ from llama_cpp import Llama
 
 # Official VinAI prompt template for PhoGPT-4B-Chat
 PROMPT_TEMPLATE = "### Câu hỏi: {prompt}\n### Trả lời:"
-STOP_SEQUENCES = ["### Trả lời:", "### Câu hỏi:"]
+STOP_SEQUENCES = ["### Câu hỏi:"]
 
 # Persona injected into first turn
 SHRIKE7_PERSONA = (
