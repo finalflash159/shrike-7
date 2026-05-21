@@ -35,6 +35,7 @@ Shrike-7 tách rõ research và runtime:
 
 Xem thêm:
 
+- [ASR hallucination robustness notes](notes/asr_research.md)
 - [Plan D2.5 ASR robustness theo hướng Colab](zplan/asr_robustness_colab_plan.md)
 - [Workflow notebook](notebooks/README.md)
 
