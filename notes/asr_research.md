@@ -48,23 +48,23 @@ cannot rely on an English hallucination phrase list.
 
 Shrike-7 adapts the paper's approach to a different runtime:
 
-| Component | Paper | Shrike-7 |
-|---|---|---|
-| Model | Whisper-large-v3 | PhoWhisper-tiny ONNX |
-| Language | English-centered benchmark | Vietnamese |
-| Goal | ASR hallucination mitigation | Voice assistant command safety |
-| Runtime | Research/evaluation | Local offline inference |
-| Decode | Whisper runtime | Greedy ONNX, no KV cache |
+| Component | Paper                        | Shrike-7                       |
+| --------- | ---------------------------- | ------------------------------ |
+| Model     | Whisper-large-v3             | PhoWhisper-tiny ONNX           |
+| Language  | English-centered benchmark   | Vietnamese                     |
+| Goal      | ASR hallucination mitigation | Voice assistant command safety |
+| Runtime   | Research/evaluation          | Local offline inference        |
+| Decode    | Whisper runtime              | Greedy ONNX, no KV cache       |
 
 Local non-speech dataset:
 
-| Source | Count |
-|---|---:|
-| ESC-50 filtered for non-human classes | 500 |
-| Synthetic silence | 100 |
-| Synthetic white noise | 100 |
-| Synthetic pink noise | 100 |
-| Total | 800 |
+| Source                                | Count |
+| ------------------------------------- | ----: |
+| ESC-50 filtered for non-human classes |   500 |
+| Synthetic silence                     |   100 |
+| Synthetic white noise                 |   100 |
+| Synthetic pink noise                  |   100 |
+| Total                                 |   800 |
 
 BoH construction:
 
@@ -97,14 +97,14 @@ audio
 
 Stage responsibilities:
 
-| Stage | Purpose |
-|---|---|
-| VAD | Skip ASR entirely on no-speech audio |
-| ASR | Produce the raw Vietnamese transcript |
-| Confidence guard | Reject low-confidence raw model output before text cleanup |
-| De-loop | Collapse repeated token or phrase loops |
-| BoH | Remove empirically collected Vietnamese hallucination phrases |
-| Text heuristics | Catch filler-only output, repetition, and impossible text density |
+| Stage            | Purpose                                                           |
+| ---------------- | ----------------------------------------------------------------- |
+| VAD              | Skip ASR entirely on no-speech audio                              |
+| ASR              | Produce the raw Vietnamese transcript                             |
+| Confidence guard | Reject low-confidence raw model output before text cleanup        |
+| De-loop          | Collapse repeated token or phrase loops                           |
+| BoH              | Remove empirically collected Vietnamese hallucination phrases     |
+| Text heuristics  | Catch filler-only output, repetition, and impossible text density |
 
 VAD parameters are Whisper-aware:
 
@@ -130,11 +130,11 @@ uv run python -m local.calibrate_thresholds
 
 Applied text-heuristic defaults:
 
-| Metric | Default |
-|---|---:|
-| Unigram repetition | 0.35 |
-| 3-gram repetition | 0.12 |
-| Characters per 100 ms | 2.50 |
+| Metric                | Default |
+| --------------------- | ------: |
+| Unigram repetition    |    0.35 |
+| 3-gram repetition     |    0.12 |
+| Characters per 100 ms |    2.50 |
 
 ASR confidence was calibrated from actual runtime output:
 
@@ -144,15 +144,15 @@ uv run python -m local.calibrate_asr_confidence --n-speech 200 --n-noise 50
 
 Observed confidence distribution:
 
-| Metric / event | Value |
-|---|---:|
-| Speech detected by VAD | 200/200 |
-| Noise detected as speech by VAD | 1/50 |
-| `avg_logprob` speech p01 | -0.250 |
-| `avg_logprob` noise max | -1.200 |
-| Applied `min_avg_logprob` | -0.725 |
-| `compression_ratio` speech p99 | 1.543 |
-| Applied `max_compression_ratio` | 2.400 |
+| Metric / event                  |   Value |
+| ------------------------------- | ------: |
+| Speech detected by VAD          | 200/200 |
+| Noise detected as speech by VAD |    1/50 |
+| `avg_logprob` speech p01        |  -0.250 |
+| `avg_logprob` noise max         |  -1.200 |
+| Applied `min_avg_logprob`       |  -0.725 |
+| `compression_ratio` speech p99  |   1.543 |
+| Applied `max_compression_ratio` |   2.400 |
 
 The `min_avg_logprob` threshold is the midpoint between the VAD-leaked noise case
 and the bottom 1% of real speech:
@@ -199,24 +199,24 @@ uv run python -m local.eval_table7 --n-speech 200 --n-noise 50
 
 Setup:
 
-| Field | Value |
-|---|---|
-| Speech eval | 200 FLEURS vi_vn test samples |
-| Noise eval | 50 non-speech samples |
-| Providers | CoreMLExecutionProvider -> CPUExecutionProvider fallback |
-| BoH | 74 manually reviewed phrases |
-| Full pipeline | Actual `RobustASR` production class |
+| Field         | Value                                                    |
+| ------------- | -------------------------------------------------------- |
+| Speech eval   | 200 FLEURS vi_vn test samples                            |
+| Noise eval    | 50 non-speech samples                                    |
+| Providers     | CoreMLExecutionProvider -> CPUExecutionProvider fallback |
+| BoH           | 74 manually reviewed phrases                             |
+| Full pipeline | Actual `RobustASR` production class                      |
 
 Results:
 
-| Config | WER | CER | Hallucination rate |
-|---|---:|---:|---:|
-| Raw ASR | 25.45% | 12.52% | 100% |
-| De-loop only | 24.62% | 12.03% | 100% |
-| Silero VAD only | 25.22% | 12.40% | 2% |
-| BoH only | 25.45% | 12.52% | 100% |
-| De-loop + BoH | 24.62% | 12.03% | 100% |
-| Full RobustASR | 25.22% | 12.40% | 0% |
+| Config          |    WER |    CER | Hallucination rate |
+| --------------- | -----: | -----: | -----------------: |
+| Raw ASR         | 25.45% | 12.52% |               100% |
+| De-loop only    | 24.62% | 12.03% |               100% |
+| Silero VAD only | 25.22% | 12.40% |                 2% |
+| BoH only        | 25.45% | 12.52% |               100% |
+| De-loop + BoH   | 24.62% | 12.03% |               100% |
+| Full RobustASR  | 25.22% | 12.40% |                 0% |
 
 Key result:
 
@@ -241,9 +241,9 @@ any non-empty noise output = hallucination
 BoH can remove a known phrase but leave residual punctuation or words, so the sample is
 still counted as hallucinated. A finer analysis is more informative:
 
-| BoH effect | Value |
-|---|---:|
-| Noise samples modified by BoH | 27/50 |
+| BoH effect                         | Value |
+| ---------------------------------- | ----: |
+| Noise samples modified by BoH      | 27/50 |
 | Noise samples fully emptied by BoH | 22/50 |
 | BoH false positives on real speech | 0/200 |
 

@@ -246,15 +246,15 @@ voice command). 500/200 ms is the hybrid chosen for sub-second push-to-talk.
 **ASR confidence calibration** (`uv run python -m local.calibrate_asr_confidence
 --n-speech 200 --n-noise 50`):
 
-| Metric / event                   | Value |
-| -------------------------------- | ----- |
-| Speech detected by VAD           | 200/200 (100%) |
-| Noise detected as speech by VAD  | 1/50 (2%) |
-| `avg_logprob` speech p01         | -0.250 |
-| `avg_logprob` noise max          | -1.200 |
-| Applied `min_avg_logprob`        | **-0.725** (midpoint) |
-| `compression_ratio` speech p99   | 1.543 |
-| Applied `max_compression_ratio`  | **2.400** (Whisper default) |
+| Metric / event                  | Value                       |
+| ------------------------------- | --------------------------- |
+| Speech detected by VAD          | 200/200 (100%)              |
+| Noise detected as speech by VAD | 1/50 (2%)                   |
+| `avg_logprob` speech p01        | -0.250                      |
+| `avg_logprob` noise max         | -1.200                      |
+| Applied `min_avg_logprob`       | **-0.725** (midpoint)       |
+| `compression_ratio` speech p99  | 1.543                       |
+| Applied `max_compression_ratio` | **2.400** (Whisper default) |
 
 The only VAD-leaked noise sample produced raw text `"thôi."` with
 `avg_logprob=-1.200`; the calibrated confidence guard rejects it before
