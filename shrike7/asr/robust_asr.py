@@ -19,7 +19,11 @@ import numpy as np
 
 from .boh import VietnameseBoH
 from .deloop import remove_consecutive_repeats
-from .hallucination_heuristics import HeuristicCheck, check_heuristics
+from .hallucination_heuristics import (
+    HeuristicCheck,
+    check_heuristics,
+    compression_ratio,
+)
 from .vad import SpeechDetector, VADResult
 from .whisper_onnx import ASRResult, VietnameseASR
 
@@ -45,6 +49,8 @@ class RobustASRResult:
     vad: VADResult | None = None
     asr: ASRResult | None = None
     total_latency_ms: float = 0.0
+    avg_logprob: float = 0.0
+    compression_ratio: float = 0.0
 
 
 class RobustASR:
@@ -67,9 +73,13 @@ class RobustASR:
         asr: VietnameseASR | None = None,
         vad: SpeechDetector | None = None,
         boh: VietnameseBoH | None = None,
+        min_avg_logprob: float = -0.25,
+        max_compression_ratio: float = 2.4,
     ):
         self.asr = asr if asr is not None else VietnameseASR(num_threads=4)
         self.vad = vad if vad is not None else SpeechDetector()
+        self.min_avg_logprob = min_avg_logprob
+        self.max_compression_ratio = max_compression_ratio
         if boh is None:
             try:
                 self.boh = VietnameseBoH()
@@ -103,6 +113,59 @@ class RobustASR:
         # Stage 2: ASR on speech-only audio (saves compute when VAD trimmed silence)
         asr_result = self.asr.transcribe(vad_result.speech_audio)
         raw_text = asr_result.text
+        avg_logprob = asr_result.avg_logprob
+        raw_compression_ratio = compression_ratio(raw_text)
+
+        # Stage 2b: model-confidence guard on raw ASR output.
+        # This must run before text-cleaning stages so diagnostics reflect
+        # exactly what the model produced.
+        if not raw_text.strip():
+            return RobustASRResult(
+                text="",
+                raw_text=raw_text,
+                text_after_deloop=raw_text,
+                text_after_boh=raw_text,
+                has_speech=True,
+                was_looping=False,
+                rejection_reason="empty_asr",
+                vad=vad_result,
+                asr=asr_result,
+                total_latency_ms=(time.perf_counter() - t0) * 1000,
+                avg_logprob=avg_logprob,
+                compression_ratio=raw_compression_ratio,
+            )
+
+        if avg_logprob < self.min_avg_logprob:
+            return RobustASRResult(
+                text="",
+                raw_text=raw_text,
+                text_after_deloop=raw_text,
+                text_after_boh=raw_text,
+                has_speech=True,
+                was_looping=False,
+                rejection_reason=f"low_confidence:{avg_logprob:.2f}",
+                vad=vad_result,
+                asr=asr_result,
+                total_latency_ms=(time.perf_counter() - t0) * 1000,
+                avg_logprob=avg_logprob,
+                compression_ratio=raw_compression_ratio,
+            )
+
+        if raw_compression_ratio > self.max_compression_ratio:
+            return RobustASRResult(
+                text="",
+                raw_text=raw_text,
+                text_after_deloop=raw_text,
+                text_after_boh=raw_text,
+                has_speech=True,
+                was_looping=False,
+                rejection_reason=f"high_compression:{raw_compression_ratio:.2f}",
+                vad=vad_result,
+                asr=asr_result,
+                total_latency_ms=(time.perf_counter() - t0) * 1000,
+                avg_logprob=avg_logprob,
+                compression_ratio=raw_compression_ratio,
+            )
 
         # Stage 3: De-loop
         text_deloop, was_looping = remove_consecutive_repeats(raw_text)
@@ -141,6 +204,8 @@ class RobustASR:
             rejection_reason=reason,
             vad=vad_result,
             asr=asr_result,
+            avg_logprob=avg_logprob,
+            compression_ratio=raw_compression_ratio,
             total_latency_ms=(time.perf_counter() - t0) * 1000,
         )
 

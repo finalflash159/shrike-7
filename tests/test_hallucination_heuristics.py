@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from shrike7.asr.hallucination_heuristics import (
     check_heuristics,
+    compression_ratio,
     is_filler_only,
     n_gram_repetition,
     repetition_ratio,
@@ -106,3 +107,11 @@ class TestCheckHeuristics:
             ngram_repetition_thresh=0.99,
         )
         assert result.is_hallucination is False
+    
+    def test_compression_ratio_empty_text(self):
+        assert compression_ratio("") == 0.0
+
+    def test_compression_ratio_repeated_text_is_higher(self):
+        repeated = "xin chào " * 80
+        normal = "bật đèn phòng khách rồi đặt hẹn giờ năm phút"
+        assert compression_ratio(repeated) > compression_ratio(normal)

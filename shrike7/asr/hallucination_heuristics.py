@@ -11,6 +11,7 @@ on real Vietnamese speech (see local/calibrate_thresholds.py).
 from __future__ import annotations
 
 import re
+import zlib
 from dataclasses import dataclass
 
 # Vietnamese conversational fillers. A real command can START with one
@@ -67,6 +68,18 @@ def n_gram_repetition(text: str, n: int = 3) -> float:
         return 0.0
     ngrams = [" ".join(tokens[i : i + n]) for i in range(len(tokens) - n + 1)]
     return 1.0 - len(set(ngrams)) / max(len(ngrams), 1)
+
+
+def compression_ratio(text: str) -> float:
+    """OpenAI Whisper-style UTF-8 compression ratio.
+
+    Highly repetitive hallucinations compress well, so their raw/compressed ratio
+    is higher. Empty text has no useful signal and returns 0.0.
+    """
+    raw = text.encode("utf-8")
+    if not raw:
+        return 0.0
+    return len(raw) / len(zlib.compress(raw))
 
 
 def check_heuristics(

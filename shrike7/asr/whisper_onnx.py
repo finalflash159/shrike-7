@@ -16,6 +16,7 @@ class ASRResult:
     latency_ms: float
     audio_duration_ms: float
     rtf: float  # Real-Time Factor: latency / audio_duration
+    avg_logprob: float = 0.0
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -132,8 +133,20 @@ class VietnameseASR:
         ).input_features
         return features.astype(np.float32)
 
-    def _decode_greedy(self, encoder_hidden: np.ndarray, max_new_tokens: int = 128) -> list[int]:
-        """Decode with greedy search for the D1 smoke test."""
+    @staticmethod
+    def _selected_token_logprob(logits: np.ndarray, token_id: int) -> float:
+        finite = np.isfinite(logits)
+        if not finite[token_id]:
+            return float("-inf")
+        max_logit = float(np.max(logits[finite]))
+        logsumexp = max_logit + float(
+            np.log(np.exp(logits[finite] - max_logit).sum())
+        )
+        return float(logits[token_id] - logsumexp)
+
+    def _decode_greedy(
+        self, encoder_hidden: np.ndarray, max_new_tokens: int = 128
+    ) -> tuple[list[int], float]:
         decoder_ids = np.array(
             [
                 [
@@ -146,6 +159,7 @@ class VietnameseASR:
             dtype=np.int64,
         )
         initial_length = decoder_ids.shape[1]
+        logprobs: list[float] = []
 
         for _ in range(max_new_tokens):
             outputs = self.decoder.run(
@@ -165,6 +179,11 @@ class VietnameseASR:
 
             next_token_id = int(np.argmax(next_token_logits))
 
+            if next_token_id != self.eos_token:
+                logprobs.append(
+                    self._selected_token_logprob(next_token_logits, next_token_id)
+                )
+
             decoder_ids = np.concatenate(
                 [decoder_ids, np.array([[next_token_id]], dtype=np.int64)],
                 axis=1,
@@ -173,7 +192,8 @@ class VietnameseASR:
             if next_token_id == self.eos_token:
                 break
 
-        return decoder_ids[0].tolist()
+        avg_logprob = float(np.mean(logprobs)) if logprobs else 0.0
+        return decoder_ids[0].tolist(), avg_logprob
 
     def transcribe(self, audio: np.ndarray, max_new_tokens: int = 128) -> ASRResult:
         if audio.ndim != 1:
@@ -187,7 +207,9 @@ class VietnameseASR:
         encoder_out = self.encoder.run(None, {"input_features": input_features})
         encoder_hidden = encoder_out[0]
 
-        token_ids = self._decode_greedy(encoder_hidden, max_new_tokens=max_new_tokens)
+        token_ids, avg_logprob = self._decode_greedy(
+            encoder_hidden, max_new_tokens=max_new_tokens
+        )
         text = self.processor.tokenizer.decode(
             token_ids,
             skip_special_tokens=True,
@@ -202,6 +224,7 @@ class VietnameseASR:
             latency_ms=latency_ms,
             audio_duration_ms=audio_duration_ms,
             rtf=rtf,
+            avg_logprob=avg_logprob,
         )
 
     def transcribe_file(self, path: str | Path, max_new_tokens: int = 128) -> ASRResult:
