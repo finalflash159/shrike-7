@@ -11,6 +11,7 @@ from rich.table import Table
 console = Console()
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
+
 def run_module(module: str, *args: str) -> None:
     """Run a Python module using the current interpreter."""
     cmd = [sys.executable, "-m", module, *args]
@@ -34,7 +35,10 @@ def status() -> None:
     """Show local artifact status."""
     paths = {
         "PhoWhisper ONNX": REPO_ROOT / "models" / "phowhisper-tiny-onnx",
-        "PhoGPT GGUF": REPO_ROOT / "models" / "phogpt" / "PhoGPT-4B-Chat-Q4_K_M.gguf",
+        "PhoGPT GGUF": REPO_ROOT
+        / "models"
+        / "phogpt-4b-chat-gguf"
+        / "PhoGPT-4B-Chat-Q4_K_M.gguf",
         "Noise manifest": REPO_ROOT / "data" / "noise_for_boh" / "manifest.jsonl",
         "FLEURS manifest": REPO_ROOT / "data" / "fleurs_vi" / "manifest.jsonl",
         "Runtime BoH": REPO_ROOT / "data" / "asr" / "vi_boh_v1.json",
@@ -51,14 +55,16 @@ def status() -> None:
 
     console.print(table)
 
-    
+
 @main.command("asr-smoke")
 def asr_smoke() -> None:
+    """Run the local ASR smoke test on recorded sample audio."""
     run_script(str(REPO_ROOT / "scripts" / "smoke_test_asr.py"))
 
 
 @main.command("llm-smoke")
 def llm_smoke() -> None:
+    """Run the local PhoGPT smoke test."""
     run_script(str(REPO_ROOT / "scripts" / "smoke_test_llm.py"))
 
 
