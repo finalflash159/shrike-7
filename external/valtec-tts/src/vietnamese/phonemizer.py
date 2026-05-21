@@ -3,6 +3,7 @@ import contextlib
 import importlib.util
 import io
 import os
+import platform
 import re
 import shutil
 import sys
@@ -19,6 +20,40 @@ except Exception:
 VIPHONEME_AVAILABLE = True
 _VIPHONEME_WORKDIR = None
 _VINORM_ISOLATED_PARENT = None
+_VINORM_RUNTIME_SUPPORTED = None
+
+
+def _env_truthy(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _vinorm_runtime_supported() -> bool:
+    """Return whether the bundled vinorm executable can run on this host.
+
+    The PyPI vinorm wheel currently ships a Linux x86_64 binary named `main`.
+    On macOS/Apple Silicon this raises `Exec format error` when viphoneme calls
+    vi2IPA. Detect that case before calling viphoneme, then use the local
+    character-based phonemizer instead.
+    """
+    global _VINORM_RUNTIME_SUPPORTED
+
+    if _env_truthy("VIPHONEME_FORCE_VINORM"):
+        return True
+    if _env_truthy("VIPHONEME_DISABLE_VINORM"):
+        return False
+    if _VINORM_RUNTIME_SUPPORTED is not None:
+        return _VINORM_RUNTIME_SUPPORTED
+
+    supported = True
+    spec = importlib.util.find_spec("vinorm")
+    if spec is not None and spec.origin is not None:
+        main_path = os.path.join(os.path.dirname(spec.origin), "main")
+        if os.path.exists(main_path):
+            machine = platform.machine().lower()
+            supported = sys.platform.startswith("linux") and machine in {"x86_64", "amd64"}
+
+    _VINORM_RUNTIME_SUPPORTED = supported
+    return supported
 
 
 def _get_viphoneme_workdir() -> str:
@@ -285,6 +320,8 @@ def text_to_phonemes_viphoneme(text: str) -> Tuple[List[str], List[int], List[in
     # to avoid vinorm dependency issues
     is_frozen = getattr(sys, 'frozen', False)
     if is_frozen:
+        return text_to_phonemes_charbased(text)
+    if not _vinorm_runtime_supported():
         return text_to_phonemes_charbased(text)
     
     # Normal mode: use full viphoneme with isolation

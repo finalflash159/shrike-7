@@ -1,4 +1,6 @@
+import importlib
 from dataclasses import FrozenInstanceError
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -69,3 +71,24 @@ def test_vietnamese_tts_accepts_valid_source_dir_without_loading(tmp_path):
     tts = VietnameseTTS(source_dir=tmp_path, lazy=True)
 
     assert tts.source_dir == tmp_path.resolve()
+
+
+def test_valtec_phonemizer_skips_viphoneme_when_vinorm_runtime_is_unsupported(
+    monkeypatch, capsys
+):
+    source_dir = Path(__file__).resolve().parents[1] / "external" / "valtec-tts"
+    monkeypatch.syspath_prepend(str(source_dir))
+    phonemizer = importlib.import_module("src.vietnamese.phonemizer")
+
+    def fail_if_called(text):
+        pytest.fail(f"viphoneme should not run on unsupported vinorm runtime: {text}")
+
+    monkeypatch.setattr(phonemizer, "_vinorm_runtime_supported", lambda: False)
+    monkeypatch.setattr(phonemizer, "vi2IPA", fail_if_called)
+
+    phones, tones, word2ph = phonemizer.text_to_phonemes_viphoneme("Xin chào")
+
+    assert phones
+    assert len(phones) == len(tones)
+    assert sum(word2ph) == len(phones)
+    assert "[WARN] Viphoneme failed" not in capsys.readouterr().out
