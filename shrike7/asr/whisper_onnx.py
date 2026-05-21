@@ -139,9 +139,7 @@ class VietnameseASR:
         if not finite[token_id]:
             return float("-inf")
         max_logit = float(np.max(logits[finite]))
-        logsumexp = max_logit + float(
-            np.log(np.exp(logits[finite] - max_logit).sum())
-        )
+        logsumexp = max_logit + float(np.log(np.exp(logits[finite] - max_logit).sum()))
         return float(logits[token_id] - logsumexp)
 
     def _decode_greedy(
@@ -180,9 +178,7 @@ class VietnameseASR:
             next_token_id = int(np.argmax(next_token_logits))
 
             if next_token_id != self.eos_token:
-                logprobs.append(
-                    self._selected_token_logprob(next_token_logits, next_token_id)
-                )
+                logprobs.append(self._selected_token_logprob(next_token_logits, next_token_id))
 
             decoder_ids = np.concatenate(
                 [decoder_ids, np.array([[next_token_id]], dtype=np.int64)],
@@ -207,9 +203,7 @@ class VietnameseASR:
         encoder_out = self.encoder.run(None, {"input_features": input_features})
         encoder_hidden = encoder_out[0]
 
-        token_ids, avg_logprob = self._decode_greedy(
-            encoder_hidden, max_new_tokens=max_new_tokens
-        )
+        token_ids, avg_logprob = self._decode_greedy(encoder_hidden, max_new_tokens=max_new_tokens)
         text = self.processor.tokenizer.decode(
             token_ids,
             skip_special_tokens=True,

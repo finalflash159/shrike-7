@@ -39,6 +39,13 @@ eval = [
     "datasets>=3.0",     # HuggingFace datasets (Common Voice VI)
     "matplotlib>=3.9",
 ]
+tts = [
+    "eng-to-ipa>=0.0.2",
+    "torchaudio>=2.0",
+    "underthesea>=8.0.0",
+    "viphoneme>=3.0.0",
+    "vinorm>=2.0.0",
+]
 
 [project.scripts]
 shrike-7 = "shrike7.cli:main"

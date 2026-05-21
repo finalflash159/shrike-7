@@ -61,8 +61,7 @@ class VietnameseLLM:
         model_path = Path(model_path or self.DEFAULT_MODEL_PATH)
         if not model_path.exists():
             raise FileNotFoundError(
-                f"Model file not found: {model_path}\n"
-                "Run: uv run python scripts/download_phogpt.py"
+                f"Model file not found: {model_path}\nRun: uv run python scripts/download_phogpt.py"
             )
 
         self.model_path = model_path

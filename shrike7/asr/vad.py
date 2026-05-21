@@ -7,11 +7,11 @@ References:
 - https://github.com/snakers4/silero-vad
 - WhisperX paper: https://arxiv.org/abs/2303.00747
 """
+
 from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 
@@ -19,6 +19,7 @@ import numpy as np
 @dataclass
 class VADResult:
     """VAD output: original audio split into speech-only chunks."""
+
     has_speech: bool
     speech_audio: np.ndarray  # concatenated speech regions
     speech_duration_ms: float
@@ -52,7 +53,7 @@ class SpeechDetector:
                 Default 200 (Whisper-tuned). Silero's own default is 30 —
                 too tight for Whisper, which expects natural sentence boundaries.
         """
-        from silero_vad import load_silero_vad, get_speech_timestamps
+        from silero_vad import get_speech_timestamps, load_silero_vad
 
         self.model = load_silero_vad()
         self.get_speech_timestamps = get_speech_timestamps
@@ -97,7 +98,7 @@ class SpeechDetector:
         speech_chunks = []
         speech_samples = 0
         for ts in speech_timestamps:
-            chunk = audio[ts["start"]:ts["end"]]
+            chunk = audio[ts["start"] : ts["end"]]
             speech_chunks.append(chunk)
             speech_samples += len(chunk)
 

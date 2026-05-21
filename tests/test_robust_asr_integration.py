@@ -13,7 +13,6 @@ from shrike7.asr.robust_asr import RobustASR
 from shrike7.asr.vad import VADResult
 from shrike7.asr.whisper_onnx import ASRResult
 
-
 DUMMY_AUDIO = np.zeros(16000, dtype=np.float32)
 
 
@@ -155,4 +154,3 @@ def test_filler_only_rejected_by_heuristic():
 
     assert result.text == ""
     assert result.rejection_reason == "heuristic:filler_only"
-

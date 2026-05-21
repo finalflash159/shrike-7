@@ -66,9 +66,7 @@ class TestVietnameseBoH:
 
     def test_multiple_disjoint_matches(self, boh_artifact):
         boh = VietnameseBoH(boh_path=boh_artifact)
-        result = boh.match_and_clean(
-            "cảm ơn các bạn đã xem video và đăng ký kênh nhé"
-        )
+        result = boh.match_and_clean("cảm ơn các bạn đã xem video và đăng ký kênh nhé")
         assert len(result.matched_phrases) == 2
 
     def test_empty_boh_loads_safely(self, tmp_path):

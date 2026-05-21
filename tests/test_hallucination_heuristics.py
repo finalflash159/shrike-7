@@ -79,9 +79,7 @@ class TestCheckHeuristics:
 
     def test_ngram_loop_rejected(self):
         # Loop is caught — could be by unigram or ngram check, both indicate hallucination.
-        result = check_heuristics(
-            "thấy thế nào thấy thế nào thấy thế nào", speech_duration_ms=2000
-        )
+        result = check_heuristics("thấy thế nào thấy thế nào thấy thế nào", speech_duration_ms=2000)
         assert result.is_hallucination is True
 
     def test_text_too_long_for_short_speech(self):
@@ -107,7 +105,7 @@ class TestCheckHeuristics:
             ngram_repetition_thresh=0.99,
         )
         assert result.is_hallucination is False
-    
+
     def test_compression_ratio_empty_text(self):
         assert compression_ratio("") == 0.0
 

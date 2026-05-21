@@ -122,9 +122,7 @@ def check_heuristics(
 
     ngram_rep = n_gram_repetition(text_clean, n=3)
     if ngram_rep > ngram_repetition_thresh:
-        return HeuristicCheck(
-            True, f"ngram_rep:{ngram_rep:.2f}", min(0.95, ngram_rep + 0.3)
-        )
+        return HeuristicCheck(True, f"ngram_rep:{ngram_rep:.2f}", min(0.95, ngram_rep + 0.3))
 
     if speech_duration_ms < min_speech_for_long_text_ms:
         chars_per_100ms = len(text_clean) / max(speech_duration_ms / 100, 0.1)

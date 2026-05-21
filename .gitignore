@@ -39,6 +39,13 @@ logs/
 *.wav
 *.mp3
 
+# Vendored external source: keep source trackable, ignore generated/heavy artifacts
+external/**/.git/
+external/**/.gradle/
+external/**/*.mp4
+!external/valtec-tts/src/models/
+!external/valtec-tts/src/models/**
+
 # Local agent/project memory
 .brv/
 

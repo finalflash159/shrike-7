@@ -53,16 +53,13 @@ class VietnameseBoH:
         path = Path(boh_path) if boh_path else self.DEFAULT_PATH
         if not path.exists():
             raise FileNotFoundError(
-                f"BoH artifact not found: {path}\n"
-                "Build it via: uv run python -m local.build_boh"
+                f"BoH artifact not found: {path}\nBuild it via: uv run python -m local.build_boh"
             )
 
         data = json.loads(path.read_text(encoding="utf-8"))
         self.metadata = data.get("metadata", {})
         self.boh_phrases = tuple(
-            item["phrase"]
-            for item in data.get("boh", [])
-            if item.get("keep", True)
+            item["phrase"] for item in data.get("boh", []) if item.get("keep", True)
         )
 
         self.automaton = ahocorasick.Automaton()

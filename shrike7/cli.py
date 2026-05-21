@@ -35,10 +35,7 @@ def status() -> None:
     """Show local artifact status."""
     paths = {
         "PhoWhisper ONNX": REPO_ROOT / "models" / "phowhisper-tiny-onnx",
-        "PhoGPT GGUF": REPO_ROOT
-        / "models"
-        / "phogpt-4b-chat-gguf"
-        / "PhoGPT-4B-Chat-Q4_K_M.gguf",
+        "PhoGPT GGUF": REPO_ROOT / "models" / "phogpt-4b-chat-gguf" / "PhoGPT-4B-Chat-Q4_K_M.gguf",
         "Noise manifest": REPO_ROOT / "data" / "noise_for_boh" / "manifest.jsonl",
         "FLEURS manifest": REPO_ROOT / "data" / "fleurs_vi" / "manifest.jsonl",
         "Runtime BoH": REPO_ROOT / "data" / "asr" / "vi_boh_v1.json",

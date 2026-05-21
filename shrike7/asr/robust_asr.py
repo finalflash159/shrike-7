@@ -45,7 +45,9 @@ class RobustASRResult:
     was_looping: bool
     boh_matches: tuple[str, ...] = field(default_factory=tuple)
     heuristic: HeuristicCheck | None = None
-    rejection_reason: str = ""  # "" if accepted, else "no_speech" | "heuristic:..." | "empty_after_boh"
+    rejection_reason: str = (
+        ""  # "" if accepted, else "no_speech" | "heuristic:..." | "empty_after_boh"
+    )
     vad: VADResult | None = None
     asr: ASRResult | None = None
     total_latency_ms: float = 0.0
