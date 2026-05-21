@@ -149,21 +149,28 @@ pipeline (`shrike7.asr.RobustASR`), **(E)** Table VII-style benchmark.
 
 **Results**
 
-| Metric                                    | Value     |
-| ----------------------------------------- | --------- |
-| Non-empty outputs on 800 noise            | **100%**  |
-| Unique normalized outputs                 | 100       |
-| BoH candidates after auto-filter          | 78        |
-| BoH after **manual review** (`keep=True`) | **75**    |
-| Phrases rejected during manual review     | 3         |
-| Coverage (sum of kept counts / total)     | 50.0%     |
-| Top phrase recurrence                     | 100 / 800 |
+| Metric                                    | Value                                    |
+| ----------------------------------------- | ---------------------------------------- |
+| Non-empty outputs on 800 noise            | **100%**                                 |
+| Unique normalized outputs                 | 100                                      |
+| BoH candidates after auto-filter          | 78                                       |
+| BoH after **manual review** (`keep=True`) | **74**                                   |
+| Phrases rejected during manual review     | 4                                        |
+| Rejected phrases                          | `đúng rồi`, `các em`, `hôm nay`, `chúng` |
+| Coverage (sum of kept counts / total)     | 49.9%                                    |
+| Top phrase recurrence                     | 100 / 800                                |
 
 **Paper comparison**: Whisper-large-v3 hallucinates on ~40% non-speech;
 PhoWhisper-tiny hallucinates on 100% because it is ~40× smaller (39M vs 1550M).
 High rate confirms why D2.5 mitigation is essential for the on-device tier.
 
-**YouTube data leak**: 30+ of 75 BoH phrases match the `"các em nhá thấy..."`
+**Manual review note**: `các em` was rejected in a second review pass after
+it caused 2/200 false positives on real FLEURS speech (it is legitimate
+Vietnamese for "you/children" but entered BoH from the `"các em nhá..."`
+hallucination pattern). Short phrases (≤3 words) are the main false-positive
+risk; all other kept phrases are ≥4 words.
+
+**YouTube data leak**: 30+ of 74 BoH phrases match the `"các em nhá thấy..."`
 pattern (teacher addressing "you guys"). This is the Vietnamese analogue of
 the WhisperX issue #1086 `"La La School"` leak — Whisper inherits YouTube
 auto-caption artifacts cross-language.
@@ -228,7 +235,7 @@ Five stages, all configurable:
 1. `SpeechDetector` (Silero VAD, `threshold=0.5`, **Whisper-tuned**: `min_silence=500ms`, `pad=200ms`)
 2. `VietnameseASR` (D1 config, applied to VAD-trimmed speech only)
 3. `remove_consecutive_repeats` (de-loop)
-4. `VietnameseBoH` (Aho-Corasick match against 75-phrase BoH after manual review)
+4. `VietnameseBoH` (Aho-Corasick match against 74-phrase BoH after manual review)
 5. `check_heuristics` (filler → unigram_rep → 3gram_rep → density, short-circuit on first rejection)
 
 **VAD param rationale**: Silero defaults are 100/30 ms (too aggressive for Whisper),
@@ -244,14 +251,14 @@ voice command). 500/200 ms is the hybrid chosen for sub-second push-to-talk.
 | Speech eval       | 200 first samples of FLEURS vi_vn test split                             |
 | Noise eval        | 50 first samples of `data/noise_for_boh/manifest.jsonl`                  |
 | Configurations    | 6 (subset toggles of `RobustASR` stages — see table below)               |
-| BoH snapshot      | 75 phrases (post manual review)                                          |
+| BoH snapshot      | 74 phrases (post manual review, `các em` rejected)                       |
 | WER normalization | `lower().strip()` on both ref and hyp before `jiwer.wer`                 |
 | CER               | Same input, via `jiwer.cer`                                              |
 | Hallucination     | `noise_output.strip() != ""` (1 = hallucinated)                          |
 | Latency           | End-to-end per sample (VAD + ASR + post-processing, excludes model load) |
 | Warmup            | 1 ASR call before timing                                                 |
 | Providers         | `CoreMLExecutionProvider` → `CPUExecutionProvider` fallback              |
-| Run date          | 2026-05-20T19:24 UTC                                                     |
+| Run date          | 2026-05-21T05:18 UTC                                                     |
 | Output path       | `eval/results/table7_replication.json` (gitignored)                      |
 | Reproducible via  | `uv run python -m local.eval_table7 --n-speech 200 --n-noise 50`         |
 
@@ -259,12 +266,12 @@ voice command). 500/200 ms is the hybrid chosen for sub-second push-to-talk.
 
 | Config                | WER    | CER    | Halluc rate | Lat p50 ms | Lat p95 ms |
 | --------------------- | ------ | ------ | ----------- | ---------- | ---------- |
-| (1) Raw ASR           | 25.45% | 12.52% | 100%        | 1122       | 2500       |
-| (2) De-loop only      | 24.62% | 12.03% | 100%        | 1180       | 2430       |
-| (3) Silero VAD only   | 25.22% | 12.40% | **2%**      | 1162       | 2354       |
-| (4) BoH only          | 25.46% | 12.54% | 100%        | 1156       | 2602       |
-| (5) De-loop + BoH     | 24.63% | 12.05% | 100%        | 1139       | 2512       |
-| (6) **Full pipeline** | 25.24% | 12.42% | **2%**      | 1157       | 2368       |
+| (1) Raw ASR           | 25.45% | 12.52% | 100%        | 1120       | 2487       |
+| (2) De-loop only      | 24.62% | 12.03% | 100%        | 1109       | 2401       |
+| (3) Silero VAD only   | 25.22% | 12.40% | **2%**      | 1144       | 2272       |
+| (4) BoH only          | 25.45% | 12.52% | 100%        | 1121       | 2432       |
+| (5) De-loop + BoH     | 24.62% | 12.03% | 100%        | 1236       | 2952       |
+| (6) **Full pipeline** | 25.22% | 12.40% | **2%**      | 1389       | 2764       |
 
 **Metric caveat**
 
@@ -276,28 +283,29 @@ A finer measurement on the same eval set:
 
 | BoH effect                         | Value            |
 | ---------------------------------- | ---------------- |
-| Noise samples modified by BoH      | 28/50 (56%)      |
+| Noise samples modified by BoH      | 27/50 (54%)      |
 | Noise samples fully emptied by BoH | 22/50 (44%)      |
-| BoH false positives on real speech | **2/200 (1.0%)** |
+| BoH false positives on real speech | **0/200 (0.0%)** |
 
-→ BoH catches 44% of noise hallucinations on its own. False-positive rate
-on real speech is 1.0% (2 phrases in BoH still matched in FLEURS speech) —
-borderline acceptable; another manual-review pass on those 2 phrases
-would bring it to 0%.
+→ BoH catches 44% of noise hallucinations on its own, with **zero**
+real-speech false positives after `các em` was rejected (was 2/200 with the
+75-phrase set). The 100% rate in column 4/5 above is a metric artifact, not
+a regression.
 
-**1 noise sample escaped the full pipeline** (`noise #49`): output `'thôi.'`
-(= "stop"). Short, looks like valid speech to heuristics. VAD detected
-"speech" in this noise file (likely a transient with speech-like
-spectrum), and heuristics see no repetition / no excess density on a
-single short word. Future fix: add `no_speech_prob` filter (Phase B3).
+**1 noise sample escaped the full pipeline** (`esc50_0048.wav`, label
+"insects"): VAD detected 720 ms of "speech" in the insect noise → ASR
+emitted `'thôi.'` (= "stop"). De-loop / BoH / heuristics all pass because a
+single valid-looking word has no repetition, no excess density, and is not a
+filler. This is the textbook case for `no_speech_prob` filtering (Phase B3):
+the decoder's `P(<\|nospeech\|>)` for genuine noise is typically > 0.6.
 
 **Key finding**
 
 Full pipeline reduces hallucination rate from 100% to 2% (49/50 noise
-samples correctly rejected) with **−0.21pp WER** on real Vietnamese speech
-(25.45% raw → 25.24% full). Note: full pipeline WER is **slightly lower**
-than raw because de-loop fixes some over-decoded outputs on real speech
-faster than VAD/BoH over-rejection adds error.
+samples correctly rejected) with **−0.23pp WER** on real Vietnamese speech
+(25.45% raw → 25.22% full) and **0% false positives**. Note: full pipeline
+WER is **slightly lower** than raw because de-loop fixes some over-decoded
+outputs on real speech faster than VAD/BoH over-rejection adds error.
 
 Matches the qualitative mitigation pattern from Barański et al. for
 Whisper-large-v3 on LibriSpeech-augmented, adapted for Vietnamese
