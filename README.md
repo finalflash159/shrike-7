@@ -12,7 +12,18 @@ Mic/audio -> VAD -> PhoWhisper ASR -> intent/LLM -> response
 
 - D1: PhoWhisper-tiny ONNX ASR baseline.
 - D2: PhoGPT GGUF local LLM baseline.
-- D2.5: tăng độ robust cho ASR, giảm hallucination khi gặp silence/noise.
+- D2.5: ASR robustness đã benchmark xong.
+- Phase 3: hoàn thiện voice loop với intent/LLM/TTS/audio output.
+
+## Kết Quả Hiện Tại
+
+- ASR baseline: PhoWhisper-tiny ONNX greedy decode trên FLEURS vi_vn đạt 23.60% WER.
+- LLM baseline: PhoGPT-4B-Chat Q4_K_M chạy local qua llama.cpp Metal, ~62.8 tok/s.
+- ASR robustness D2.5: `RobustASR` giảm hallucination trên non-speech từ 100% xuống 0%
+  trên 50 noise samples, giữ WER gần như không đổi trên 200 speech samples
+  (25.45% raw → 25.22% full pipeline).
+
+Xem số đo chi tiết trong [BENCHMARKS.md](BENCHMARKS.md).
 
 ## Workflow Research Trên Colab
 

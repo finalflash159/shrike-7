@@ -9,7 +9,8 @@ Compares 6 configurations on a mix of real speech + non-speech:
     vad              — Silero VAD pre-filter + ASR
     boh              — ASR + Aho-Corasick BoH match
     deloop_boh       — ASR + de-loop + BoH
-    vad_deloop_boh   — full pipeline (VAD + ASR + de-loop + BoH + heuristics)
+    vad_deloop_boh   — production RobustASR pipeline
+                       (VAD + ASR + confidence guard + de-loop + BoH + heuristics)
 
 Reports per config:
   - WER + CER on real Vietnamese speech (FLEURS vi_vn)
@@ -52,9 +53,9 @@ from rich.table import Table
 from local import config as cfg
 from shrike7.asr import (
     SpeechDetector,
+    RobustASR,
     VietnameseASR,
     VietnameseBoH,
-    check_heuristics,
     remove_consecutive_repeats,
 )
 
@@ -67,7 +68,7 @@ CONFIG_LABELS = {
     "vad": "(3) Silero VAD only",
     "boh": "(4) BoH only",
     "deloop_boh": "(5) De-loop + BoH",
-    "vad_deloop_boh": "(6) Full pipeline (VAD + de-loop + BoH + heuristics)",
+    "vad_deloop_boh": "(6) Full pipeline (RobustASR production path)",
 }
 
 
@@ -150,15 +151,44 @@ def run_config(
     asr: VietnameseASR,
     vad: SpeechDetector,
     boh: VietnameseBoH | None,
+    robust_asr: RobustASR | None,
 ) -> dict:
     """Run a single pipeline configuration. Return per-item predictions + metrics."""
     predictions: list[str] = []
     latencies_ms: list[float] = []
+    diagnostics: list[dict] = []
 
     for item in track(items, description=f"  {code}"):
         t0 = time.perf_counter()
         audio = item.audio
         speech_duration_ms = item.duration_ms
+
+        # The final Table VII config must exercise the actual production class.
+        # Earlier configs stay manual so they isolate each mitigation stage.
+        if code == "vad_deloop_boh":
+            if robust_asr is None:
+                raise RuntimeError("robust_asr is required for vad_deloop_boh config")
+            result = robust_asr.transcribe(audio)
+            predictions.append(result.text.strip())
+            latencies_ms.append(result.total_latency_ms)
+            diagnostics.append(
+                {
+                    "kind": item.kind,
+                    "raw_text": result.raw_text,
+                    "final_text": result.text,
+                    "rejection_reason": result.rejection_reason,
+                    "has_speech": result.has_speech,
+                    "was_looping": result.was_looping,
+                    "boh_matches": list(result.boh_matches),
+                    "avg_logprob": result.avg_logprob,
+                    "compression_ratio": result.compression_ratio,
+                    "speech_duration_ms": (
+                        result.vad.speech_duration_ms if result.vad is not None else 0.0
+                    ),
+                    "total_latency_ms": result.total_latency_ms,
+                }
+            )
+            continue
 
         # VAD pre-filter (optional)
         if "vad" in code:
@@ -166,12 +196,23 @@ def run_config(
             if not vad_result.has_speech:
                 predictions.append("")
                 latencies_ms.append((time.perf_counter() - t0) * 1000)
+                diagnostics.append(
+                    {
+                        "kind": item.kind,
+                        "raw_text": "",
+                        "final_text": "",
+                        "rejection_reason": "no_speech",
+                        "has_speech": False,
+                        "speech_duration_ms": 0.0,
+                    }
+                )
                 continue
             audio = vad_result.speech_audio
             speech_duration_ms = vad_result.speech_duration_ms
 
         # ASR
         text = asr.transcribe(audio).text
+        raw_text = text
 
         # De-loop (optional)
         if "deloop" in code:
@@ -181,16 +222,24 @@ def run_config(
         if "boh" in code and boh is not None:
             text = boh.match_and_clean(text).cleaned_text
 
-        # Heuristics safety net (only for full pipeline)
-        if code == "vad_deloop_boh":
-            heuristic = check_heuristics(text, speech_duration_ms)
-            if heuristic.is_hallucination:
-                text = ""
-
         predictions.append(text.strip())
         latencies_ms.append((time.perf_counter() - t0) * 1000)
+        diagnostics.append(
+            {
+                "kind": item.kind,
+                "raw_text": raw_text,
+                "final_text": text.strip(),
+                "rejection_reason": "",
+                "has_speech": True,
+                "speech_duration_ms": speech_duration_ms,
+            }
+        )
 
-    return {"predictions": predictions, "latencies_ms": latencies_ms}
+    return {
+        "predictions": predictions,
+        "latencies_ms": latencies_ms,
+        "diagnostics": diagnostics,
+    }
 
 
 def compute_metrics(items: list[Item], predictions: list[str], latencies_ms: list[float]) -> dict:
@@ -267,6 +316,12 @@ def main(n_speech: int, n_noise: int, configs: str, providers: str) -> None:
     except FileNotFoundError:
         boh = None
         console.print("  [yellow]ASR + VAD ready; BoH artifact missing → BoH configs will skip stage 4[/yellow]\n")
+    robust_asr = RobustASR(asr=asr, vad=vad, boh=boh)
+    console.print(
+        "  RobustASR thresholds: "
+        f"min_avg_logprob={robust_asr.min_avg_logprob:.3f}, "
+        f"max_compression_ratio={robust_asr.max_compression_ratio:.3f}\n"
+    )
 
     # Warmup
     if items:
@@ -275,12 +330,13 @@ def main(n_speech: int, n_noise: int, configs: str, providers: str) -> None:
     all_results: dict[str, dict] = {}
     for code in config_list:
         console.print(f"[bold cyan]{CONFIG_LABELS[code]}[/bold cyan]")
-        run = run_config(code, items, asr, vad, boh)
+        run = run_config(code, items, asr, vad, boh, robust_asr)
         metrics = compute_metrics(items, run["predictions"], run["latencies_ms"])
         all_results[code] = {
             **metrics,
             "predictions": run["predictions"],
             "latencies_ms": run["latencies_ms"],
+            "diagnostics": run["diagnostics"],
         }
 
     # Summary table
@@ -322,6 +378,12 @@ def main(n_speech: int, n_noise: int, configs: str, providers: str) -> None:
                 "min_silence_ms": vad.min_silence_ms,
                 "speech_pad_ms": vad.speech_pad_ms,
             },
+            "robust_asr": {
+                "full_pipeline_config": "vad_deloop_boh",
+                "uses_production_class": True,
+                "min_avg_logprob": robust_asr.min_avg_logprob,
+                "max_compression_ratio": robust_asr.max_compression_ratio,
+            },
             "speech_dataset": f"{cfg.FLEURS_REPO}:{cfg.FLEURS_LANG}:{cfg.FLEURS_SPLIT}",
             "noise_dataset": "ESC-50 (filtered) + synthetic silence/white/pink",
             "created_by": "local.eval_table7",
@@ -335,6 +397,9 @@ def main(n_speech: int, n_noise: int, configs: str, providers: str) -> None:
         },
         "per_item_predictions": {
             code: r["predictions"] for code, r in all_results.items()
+        },
+        "per_item_diagnostics": {
+            code: r["diagnostics"] for code, r in all_results.items()
         },
     }
     out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

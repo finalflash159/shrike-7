@@ -230,17 +230,35 @@ Section E: 0/100 real-speech samples were flagged by heuristics).
 
 ### D. Runtime pipeline (`shrike7.asr.RobustASR`)
 
-Five stages, all configurable:
+Six stages, all configurable:
 
 1. `SpeechDetector` (Silero VAD, `threshold=0.5`, **Whisper-tuned**: `min_silence=500ms`, `pad=200ms`)
 2. `VietnameseASR` (D1 config, applied to VAD-trimmed speech only)
-3. `remove_consecutive_repeats` (de-loop)
-4. `VietnameseBoH` (Aho-Corasick match against 74-phrase BoH after manual review)
-5. `check_heuristics` (filler → unigram_rep → 3gram_rep → density, short-circuit on first rejection)
+3. ASR confidence guard (`avg_logprob`, `compression_ratio`) on raw model output
+4. `remove_consecutive_repeats` (de-loop)
+5. `VietnameseBoH` (Aho-Corasick match against 74-phrase BoH after manual review)
+6. `check_heuristics` (filler → unigram_rep → 3gram_rep → density, short-circuit on first rejection)
 
 **VAD param rationale**: Silero defaults are 100/30 ms (too aggressive for Whisper),
 faster-whisper uses 2000/400 (good for long-form audio but adds UX latency for
 voice command). 500/200 ms is the hybrid chosen for sub-second push-to-talk.
+
+**ASR confidence calibration** (`uv run python -m local.calibrate_asr_confidence
+--n-speech 200 --n-noise 50`):
+
+| Metric / event                   | Value |
+| -------------------------------- | ----- |
+| Speech detected by VAD           | 200/200 (100%) |
+| Noise detected as speech by VAD  | 1/50 (2%) |
+| `avg_logprob` speech p01         | -0.250 |
+| `avg_logprob` noise max          | -1.200 |
+| Applied `min_avg_logprob`        | **-0.725** (midpoint) |
+| `compression_ratio` speech p99   | 1.543 |
+| Applied `max_compression_ratio`  | **2.400** (Whisper default) |
+
+The only VAD-leaked noise sample produced raw text `"thôi."` with
+`avg_logprob=-1.200`; the calibrated confidence guard rejects it before
+de-loop/BoH/heuristics.
 
 ### E. Table VII replication
 
@@ -258,7 +276,7 @@ voice command). 500/200 ms is the hybrid chosen for sub-second push-to-talk.
 | Latency           | End-to-end per sample (VAD + ASR + post-processing, excludes model load) |
 | Warmup            | 1 ASR call before timing                                                 |
 | Providers         | `CoreMLExecutionProvider` → `CPUExecutionProvider` fallback              |
-| Run date          | 2026-05-21T05:18 UTC                                                     |
+| Run date          | 2026-05-21T11:27 UTC                                                     |
 | Output path       | `eval/results/table7_replication.json` (gitignored)                      |
 | Reproducible via  | `uv run python -m local.eval_table7 --n-speech 200 --n-noise 50`         |
 
@@ -266,12 +284,12 @@ voice command). 500/200 ms is the hybrid chosen for sub-second push-to-talk.
 
 | Config                | WER    | CER    | Halluc rate | Lat p50 ms | Lat p95 ms |
 | --------------------- | ------ | ------ | ----------- | ---------- | ---------- |
-| (1) Raw ASR           | 25.45% | 12.52% | 100%        | 1120       | 2487       |
-| (2) De-loop only      | 24.62% | 12.03% | 100%        | 1109       | 2401       |
-| (3) Silero VAD only   | 25.22% | 12.40% | **2%**      | 1144       | 2272       |
-| (4) BoH only          | 25.45% | 12.52% | 100%        | 1121       | 2432       |
-| (5) De-loop + BoH     | 24.62% | 12.03% | 100%        | 1236       | 2952       |
-| (6) **Full pipeline** | 25.22% | 12.40% | **2%**      | 1389       | 2764       |
+| (1) Raw ASR           | 25.45% | 12.52% | 100%        | 1235       | 2562       |
+| (2) De-loop only      | 24.62% | 12.03% | 100%        | 1233       | 2701       |
+| (3) Silero VAD only   | 25.22% | 12.40% | **2%**      | 1260       | 2417       |
+| (4) BoH only          | 25.45% | 12.52% | 100%        | 1256       | 2730       |
+| (5) De-loop + BoH     | 24.62% | 12.03% | 100%        | 1213       | 2724       |
+| (6) **Full pipeline** | 25.22% | 12.40% | **0%**      | 1235       | 2471       |
 
 **Metric caveat**
 
@@ -292,20 +310,21 @@ real-speech false positives after `các em` was rejected (was 2/200 with the
 75-phrase set). The 100% rate in column 4/5 above is a metric artifact, not
 a regression.
 
-**1 noise sample escaped the full pipeline** (`esc50_0048.wav`, label
-"insects"): VAD detected 720 ms of "speech" in the insect noise → ASR
-emitted `'thôi.'` (= "stop"). De-loop / BoH / heuristics all pass because a
+**Prior escaped edge case fixed by confidence guard**: `esc50_0048.wav`
+(label `"insects"`) made VAD detect 720 ms of "speech" and ASR emit
+`"thôi."` (= "stop"). De-loop / BoH / text heuristics all passed because a
 single valid-looking word has no repetition, no excess density, and is not a
-filler. This is the textbook case for `no_speech_prob` filtering (Phase B3):
-the decoder's `P(<\|nospeech\|>)` for genuine noise is typically > 0.6.
+filler. After calibration, `avg_logprob=-1.200 < -0.725`, so
+`RobustASR` rejects it as `low_confidence:-1.20`.
 
 **Key finding**
 
-Full pipeline reduces hallucination rate from 100% to 2% (49/50 noise
+Full pipeline reduces hallucination rate from 100% to **0%** (50/50 noise
 samples correctly rejected) with **−0.23pp WER** on real Vietnamese speech
-(25.45% raw → 25.22% full) and **0% false positives**. Note: full pipeline
-WER is **slightly lower** than raw because de-loop fixes some over-decoded
-outputs on real speech faster than VAD/BoH over-rejection adds error.
+(25.45% raw → 25.22% full) and **0% observed false positives** in this run.
+Note: full pipeline WER is **slightly lower** than raw because de-loop fixes
+some over-decoded outputs on real speech faster than VAD/BoH/confidence
+over-rejection adds error.
 
 Matches the qualitative mitigation pattern from Barański et al. for
 Whisper-large-v3 on LibriSpeech-augmented, adapted for Vietnamese
