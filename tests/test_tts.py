@@ -1,4 +1,6 @@
 import importlib
+import sys
+import warnings
 from dataclasses import FrozenInstanceError
 from pathlib import Path
 
@@ -92,3 +94,15 @@ def test_valtec_phonemizer_skips_viphoneme_when_vinorm_runtime_is_unsupported(
     assert len(phones) == len(tones)
     assert sum(word2ph) == len(phones)
     assert "[WARN] Viphoneme failed" not in capsys.readouterr().out
+
+
+def test_valtec_phonemizer_import_does_not_eagerly_import_vinorm(monkeypatch):
+    source_dir = Path(__file__).resolve().parents[1] / "external" / "valtec-tts"
+    monkeypatch.syspath_prepend(str(source_dir))
+    sys.modules.pop("src.vietnamese.phonemizer", None)
+
+    with warnings.catch_warnings(record=True) as captured:
+        warnings.simplefilter("always")
+        importlib.import_module("src.vietnamese.phonemizer")
+
+    assert not any("imp module is deprecated" in str(w.message) for w in captured)

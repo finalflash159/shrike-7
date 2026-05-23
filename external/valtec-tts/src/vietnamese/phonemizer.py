@@ -9,18 +9,51 @@ import shutil
 import sys
 import tempfile
 import unicodedata
+import warnings
+from collections.abc import Callable
 from typing import List, Tuple
-from viphoneme import vi2IPA
 
 try:
     import fcntl  # type: ignore
 except Exception:
     fcntl = None
 
-VIPHONEME_AVAILABLE = True
+vi2IPA: Callable[[str], str] | None = None
+VIPHONEME_AVAILABLE = importlib.util.find_spec("viphoneme") is not None
 _VIPHONEME_WORKDIR = None
 _VINORM_ISOLATED_PARENT = None
 _VINORM_RUNTIME_SUPPORTED = None
+
+
+def _load_vi2ipa() -> Callable[[str], str] | None:
+    """Import viphoneme only when it is safe to use.
+
+    Importing viphoneme imports vinorm, whose current wheel emits a Python
+    3.12 deprecation warning and may ship a host-incompatible binary. Keep the
+    import lazy so unsupported hosts can use the char-based phonemizer without
+    importing vinorm at all.
+    """
+    global VIPHONEME_AVAILABLE, vi2IPA
+
+    if vi2IPA is not None:
+        return vi2IPA
+    if not VIPHONEME_AVAILABLE:
+        return None
+
+    try:
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="the imp module is deprecated.*",
+                category=DeprecationWarning,
+            )
+            from viphoneme import vi2IPA as imported_vi2IPA
+    except Exception:
+        VIPHONEME_AVAILABLE = False
+        return None
+
+    vi2IPA = imported_vi2IPA
+    return vi2IPA
 
 
 def _env_truthy(name: str) -> bool:
@@ -314,14 +347,15 @@ def text_to_phonemes_viphoneme(text: str) -> Tuple[List[str], List[int], List[in
     - Tone number (1-6) at end of each syllable
     - Punctuation as separate tokens
     """
-    import warnings
-
     # In frozen/PyInstaller mode, use char-based phonemizer directly
     # to avoid vinorm dependency issues
     is_frozen = getattr(sys, 'frozen', False)
     if is_frozen:
         return text_to_phonemes_charbased(text)
     if not _vinorm_runtime_supported():
+        return text_to_phonemes_charbased(text)
+    converter = _load_vi2ipa()
+    if converter is None:
         return text_to_phonemes_charbased(text)
     
     # Normal mode: use full viphoneme with isolation
@@ -335,7 +369,7 @@ def text_to_phonemes_viphoneme(text: str) -> Tuple[List[str], List[int], List[in
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     with _redirect_fds_to_devnull():
-                        ipa_text = vi2IPA(text)
+                        ipa_text = converter(text)
             finally:
                 os.chdir(cwd)
     except Exception as e:
