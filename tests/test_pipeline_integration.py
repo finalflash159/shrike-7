@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from shrike7.core.pipeline import VoicePipeline
+from shrike7.core import NullAudioPlayer, VoicePipeline
 from shrike7.tts import TTSResult
 
 
@@ -39,6 +39,10 @@ class SpyLLM:
         self.calls.append(text)
         return FakeLLMResult(text=self.response)
 
+    def generate_stream(self, text: str, max_tokens: int = 128, temperature: float = 0.0):
+        self.calls.append(text)
+        yield from ["Xin chào bạn. ", "Mình là Shrike-7."]
+
 
 class SpyTTS:
     def __init__(self) -> None:
@@ -56,6 +60,15 @@ class SpyTTS:
             voice=voice or "NF",
             engine="fake",
         )
+
+
+class FailingTTS:
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    def synthesize(self, text: str, voice: str | None = None) -> TTSResult:
+        self.calls.append(text)
+        raise RuntimeError("tts failed")
 
 
 def test_voice_pipeline_happy_path_calls_llm_and_tts() -> None:
@@ -115,3 +128,71 @@ def test_voice_pipeline_resets_metrics_between_turns() -> None:
 
     assert set(first.stage_latencies_ms) == {"asr", "llm", "tts"}
     assert set(second.stage_latencies_ms) == {"asr", "llm", "tts"}
+
+
+def test_voice_pipeline_streaming_yields_asr_tokens_sentences_audio_and_done():
+    asr = FakeASR("xin chao")
+    llm = SpyLLM(response="unused")
+    tts = SpyTTS()
+    pipeline = VoicePipeline(asr=asr, llm=llm, tts=tts)
+
+    events = list(
+        pipeline.turn_streaming(
+            np.zeros(16000, dtype=np.float32),
+            audio_sink=NullAudioPlayer(),
+            min_sentence_chars=8,
+        )
+    )
+
+    event_types = [event.type for event in events]
+
+    assert "asr" in event_types
+    assert "llm_token" in event_types
+    assert "sentence" in event_types
+    assert "tts" in event_types
+    assert "audio" in event_types
+    assert event_types[-1] == "done"
+    assert asr.calls == 1
+    assert llm.calls == ["xin chao"]
+    assert tts.calls == ["Xin chào bạn.", "Mình là Shrike-7."]
+
+
+def test_voice_pipeline_streaming_reject_path_skips_llm_and_tts():
+    asr = FakeASR("", rejection_reason="no_speech")
+    llm = SpyLLM()
+    tts = SpyTTS()
+    pipeline = VoicePipeline(asr=asr, llm=llm, tts=tts)
+
+    events = list(
+        pipeline.turn_streaming(
+            np.zeros(16000, dtype=np.float32),
+            audio_sink=NullAudioPlayer(),
+        )
+    )
+
+    assert [event.type for event in events] == ["asr", "done"]
+    assert events[-1].metadata["rejected"] is True
+    assert llm.calls == []
+    assert tts.calls == []
+
+
+def test_voice_pipeline_streaming_yields_error_when_tts_fails():
+    asr = FakeASR("xin chao")
+    llm = SpyLLM(response="unused")
+    tts = FailingTTS()
+    pipeline = VoicePipeline(asr=asr, llm=llm, tts=tts)
+
+    events = list(
+        pipeline.turn_streaming(
+            np.zeros(16000, dtype=np.float32),
+            audio_sink=NullAudioPlayer(),
+            min_sentence_chars=8,
+        )
+    )
+
+    error_events = [event for event in events if event.type == "error"]
+
+    assert error_events
+    assert error_events[0].text == "tts failed"
+    assert events[-1].type == "done"
+    assert tts.calls == ["Xin chào bạn."]

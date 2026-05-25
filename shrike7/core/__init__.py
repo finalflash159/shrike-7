@@ -2,6 +2,7 @@ from .audio_out import AudioSink, NullAudioPlayer, PlaybackResult, SoundDevicePl
 from .endpoint import EndpointConfig, block_samples, record_until_silence, should_stop_recording
 from .metrics import MetricsLogger
 from .pipeline import PipelineResult, VoicePipeline
+from .streaming import StreamingEvent, pop_ready_sentence
 from .text_chunking import split_sentences
 
 __all__ = [
@@ -18,4 +19,6 @@ __all__ = [
     "record_until_silence",
     "should_stop_recording",
     "split_sentences",
+    "StreamingEvent",
+    "pop_ready_sentence",
 ]
