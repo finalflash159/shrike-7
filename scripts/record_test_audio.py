@@ -1,4 +1,5 @@
 from pathlib import Path
+
 import sounddevice as sd
 import soundfile as sf
 
@@ -23,7 +24,12 @@ for name, prompt, duration in PROMPTS:
         continue
     input(f"\n>>> Press ENTER, then say: \"{prompt}\" ({duration}s)...")
     print(f"🎙️  Recording {duration}s...")
-    audio = sd.rec(int(duration * SAMPLE_RATE), samplerate=SAMPLE_RATE, channels=1, dtype="float32")
+    audio = sd.rec(
+        int(duration * SAMPLE_RATE),
+        samplerate=SAMPLE_RATE,
+        channels=1,
+        dtype="float32",
+    )
     sd.wait()
     sf.write(str(out_path), audio, SAMPLE_RATE)
     print(f"✅ Saved {out_path}")

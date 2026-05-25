@@ -1,9 +1,9 @@
 """Test Silero VAD on 3 conditions: real speech, silence, background noise."""
-import time
-import numpy as np
+
 import sounddevice as sd
 from rich.console import Console
 from rich.table import Table
+
 from shrike7.asr.vad import SpeechDetector
 
 console = Console()
@@ -32,8 +32,12 @@ for name, instruction in scenarios:
     console.print(f"\n[bold]{name}[/bold]: {instruction}")
     input(">>> Press ENTER to start recording...")
     console.print(f"[yellow]Recording {TEST_DURATION}s...[/yellow]")
-    audio = sd.rec(int(TEST_DURATION * SAMPLE_RATE),
-                   samplerate=SAMPLE_RATE, channels=1, dtype="float32")
+    audio = sd.rec(
+        int(TEST_DURATION * SAMPLE_RATE),
+        samplerate=SAMPLE_RATE,
+        channels=1,
+        dtype="float32",
+    )
     sd.wait()
     audio = audio.flatten()
 

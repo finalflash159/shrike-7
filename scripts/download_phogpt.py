@@ -1,4 +1,6 @@
+import subprocess
 from pathlib import Path
+
 from huggingface_hub import hf_hub_download
 
 MODEL_REPO = "vinai/PhoGPT-4B-Chat-gguf"
@@ -14,5 +16,4 @@ hf_hub_download(
 )
 
 print("Done. ")
-import subprocess
 subprocess.run(["du", "-h", str(LOCAL_DIR)])

@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-
 MODEL_REGISTRY = {
     "phowhisper_tiny": {
         "repo_id": "huuquyet/PhoWhisper-tiny",

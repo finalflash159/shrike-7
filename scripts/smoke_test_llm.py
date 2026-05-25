@@ -1,7 +1,6 @@
 """Smoke test: load PhoGPT-4B-Chat Q4_K_M and run 5 Vietnamese prompts."""
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
 
 from shrike7.llm import VietnameseLLM
 

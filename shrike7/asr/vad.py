@@ -64,24 +64,11 @@ class SpeechDetector:
 
     def detect(self, audio: np.ndarray) -> VADResult:
         """Run VAD on float32 16kHz mono audio. Returns speech-only audio."""
-        import torch
-
         t0 = time.perf_counter()
         original_duration_ms = len(audio) / self.SAMPLE_RATE * 1000
 
-        # Silero requires torch tensor float32
-        audio_tensor = torch.from_numpy(audio).float()
-
         # get_speech_timestamps returns list of {"start": idx, "end": idx}
-        speech_timestamps = self.get_speech_timestamps(
-            audio_tensor,
-            self.model,
-            sampling_rate=self.SAMPLE_RATE,
-            threshold=self.threshold,
-            min_speech_duration_ms=self.min_speech_ms,
-            min_silence_duration_ms=self.min_silence_ms,
-            speech_pad_ms=self.speech_pad_ms,
-        )
+        speech_timestamps = self.speech_timestamps(audio)
 
         if not speech_timestamps:
             return VADResult(
@@ -114,4 +101,18 @@ class SpeechDetector:
             speech_ratio=speech_duration_ms / max(original_duration_ms, 1.0),
             vad_latency_ms=vad_latency_ms,
             n_speech_segments=len(speech_timestamps),
+        )
+
+    def speech_timestamps(self, audio: np.ndarray) -> list[dict[str, int]]:
+        import torch
+
+        audio_tensor = torch.from_numpy(audio).float()
+        return self.get_speech_timestamps(
+            audio_tensor,
+            self.model,
+            sampling_rate=self.SAMPLE_RATE,
+            threshold=self.threshold,
+            min_speech_duration_ms=self.min_speech_ms,
+            min_silence_duration_ms=self.min_silence_ms,
+            speech_pad_ms=self.speech_pad_ms,
         )
