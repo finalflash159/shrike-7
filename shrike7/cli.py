@@ -8,6 +8,8 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from shrike7.llm.registry import DEFAULT_LLM_MODEL_KEY, LLM_MODEL_REGISTRY, get_model_config
+
 console = Console()
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -33,9 +35,10 @@ def main() -> None:
 @main.command()
 def status() -> None:
     """Show local artifact status."""
+    default_llm = get_model_config(DEFAULT_LLM_MODEL_KEY)
     paths = {
         "PhoWhisper ONNX": REPO_ROOT / "models" / "phowhisper-tiny-onnx",
-        "PhoGPT GGUF": REPO_ROOT / "models" / "phogpt-4b-chat-gguf" / "PhoGPT-4B-Chat-Q4_K_M.gguf",
+        f"Default LLM GGUF ({DEFAULT_LLM_MODEL_KEY})": default_llm.local_path,
         "Noise manifest": REPO_ROOT / "data" / "noise_for_boh" / "manifest.jsonl",
         "FLEURS manifest": REPO_ROOT / "data" / "fleurs_vi" / "manifest.jsonl",
         "Runtime BoH": REPO_ROOT / "data" / "asr" / "vi_boh_v1.json",
@@ -60,9 +63,37 @@ def asr_smoke() -> None:
 
 
 @main.command("llm-smoke")
-def llm_smoke() -> None:
-    """Run the local PhoGPT smoke test."""
-    run_script(str(REPO_ROOT / "scripts" / "smoke_test_llm.py"))
+@click.option(
+    "--model",
+    default=DEFAULT_LLM_MODEL_KEY,
+    type=click.Choice(sorted(LLM_MODEL_REGISTRY)),
+    show_default=True,
+)
+def llm_smoke(model: str) -> None:
+    """Run the local llama.cpp LLM smoke test."""
+    run_script(str(REPO_ROOT / "scripts" / "smoke_test_llm.py"), "--model", model)
+
+
+@main.command("llm-models")
+def llm_models() -> None:
+    """List registered local LLM candidates."""
+    table = Table(title="Shrike-7 LLM Registry")
+    table.add_column("Key", style="cyan")
+    table.add_column("Role")
+    table.add_column("Prompt")
+    table.add_column("Exists", justify="center")
+    table.add_column("Path")
+
+    for config in LLM_MODEL_REGISTRY.values():
+        table.add_row(
+            config.model_key,
+            config.role,
+            config.prompt_style,
+            "yes" if config.local_path.exists() else "no",
+            str(config.local_path),
+        )
+
+    console.print(table)
 
 
 @main.command("benchmark-asr")

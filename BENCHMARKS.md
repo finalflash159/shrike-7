@@ -1,6 +1,6 @@
 # Shrike-7 — Benchmarks
 
-> Last updated: 2026-05-21. All measurements are from real local runs;
+> Last updated: 2026-05-27. All measurements are from real local runs;
 > raw output JSON lives under `eval/results/` (gitignored).
 
 ## Common hardware
@@ -105,6 +105,52 @@ on FLEURS, **not** Common Voice VI.
   responses → more decode steps).
 - 62.8 tok/s ≈ acceptable conversational speed; comfortably above Vietnamese
   speech rate (~3-4 syllables/sec for TTS pacing).
+
+---
+
+## D2.1 — LLM Bake-Off (Generic llama.cpp Registry)
+
+**Purpose:** compare the practical local LLM candidates for the Shrike-7 voice
+assistant before changing the runtime default.
+
+**Setup**
+
+| Field | Value |
+| --- | --- |
+| Runtime | `shrike7.llm.LocalLlamaCppLLM` (`llama-cpp-python`, Metal) |
+| Model selection | `shrike7/llm/registry.py`, profile `bakeoff` |
+| Prompt set | `eval/prompts/llm_bakeoff_vi.jsonl`, 50 Vietnamese prompts |
+| Categories | `assistant_command`, `local_utility`, `conversation`, `unknown_refusal`, `asr_noisy`, `coding` |
+| Decode | Streaming, `temperature=0.2`, `top_p=0.9`, `max_tokens=96` |
+| Run command | `uv run python eval/eval_llm.py --profile bakeoff` |
+| Run date | 2026-05-27 |
+| Output path | `eval/results/llm_bakeoff_20260527_012847.{json,md}` (gitignored) |
+
+**Results**
+
+| Model | Role | TTFT p50 ms | TTFT p95 ms | tok/s mean | Total p95 ms | Too long | VI signal | CJK leak | EN leak | Cmd refuse | RT hallu | Privacy hallu | Peak MB |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `phogpt_4b_q4_k_m` | baseline | 62 | 63 | 62.1 | 2031 | 30.0% | 100.0% | 0.0% | 0.0% | 40.0% | 38.5% | 16.7% | 3096 |
+| `arcee_vylinh_3b_q4_k_m` | primary candidate | 51 | 52 | 76.5 | 559 | 0.0% | 96.0% | 4.0% | 2.0% | 20.0% | 38.5% | 33.3% | 2161 |
+| `qwen3_0_6b_q8_0` | low-RAM fallback | 14 | 14 | 156.9 | 364 | 0.0% | 98.0% | 0.0% | 2.0% | 50.0% | 7.7% | 16.7% | 1277 |
+| `vinallama_2_7b_q5_0` | Vietnamese-trained small candidate | 47 | 47 | 54.2 | 1761 | 14.0% | 98.0% | 0.0% | 0.0% | 70.0% | 23.1% | 16.7% | 3278 |
+
+**Decision**
+
+- Keep PhoGPT as the historical baseline/default for now.
+- Treat Arcee-VyLinh as the leading free-chat candidate after intent routing.
+- Treat Qwen3-0.6B as the low-RAM fallback/smoke model.
+- Do not prioritize VinaLLaMA-2.7B for the default path: clean Vietnamese output,
+  but high command refusal, high memory, and slower full responses in this run.
+- Do not send commands, real-time questions, or privacy-sensitive prompts straight
+  into the LLM. The next Phase 3 task is a deterministic intent/tool/privacy
+  router, then a post-router bake-off.
+
+**Caveats**
+
+- These numbers are Mac local measurements, not Raspberry Pi or ARM board claims.
+- Behavioral rates are heuristic screeners, not human ratings; inspect the JSON
+  responses before making public claims.
 
 ---
 

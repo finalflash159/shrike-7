@@ -1,5 +1,6 @@
 """LLM subpackage — Vietnamese language understanding & response generation."""
 
-from .phogpt_runner import LLMResult, VietnameseLLM
+from .base import LLMEngine, LLMResult
+from .llamacpp_runner import LocalLlamaCppLLM
 
-__all__ = ["VietnameseLLM", "LLMResult"]
+__all__ = ["LLMEngine", "LLMResult", "LocalLlamaCppLLM"]

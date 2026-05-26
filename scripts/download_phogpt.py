@@ -1,19 +1,11 @@
-import subprocess
-from pathlib import Path
+"""Backward-compatible shortcut for downloading the default PhoGPT GGUF."""
 
-from huggingface_hub import hf_hub_download
+from __future__ import annotations
 
-MODEL_REPO = "vinai/PhoGPT-4B-Chat-gguf"
-LOCAL_DIR = Path(__file__).parent.parent / "models" / "phogpt-4b-chat-gguf"
-LOCAL_DIR.mkdir(parents=True, exist_ok=True)
+import sys
 
-# Primary: Q4_K_M
-print(f"Downloading {MODEL_REPO} (Q4_K_M) -> {LOCAL_DIR}")
-hf_hub_download(
-    repo_id=MODEL_REPO,
-    filename="PhoGPT-4B-Chat-Q4_K_M.gguf",
-    local_dir=str(LOCAL_DIR),
-)
+from scripts.download_llm import main
+from shrike7.llm.registry import DEFAULT_LLM_MODEL_KEY
 
-print("Done. ")
-subprocess.run(["du", "-h", str(LOCAL_DIR)])
+if __name__ == "__main__":
+    raise SystemExit(main(["--model", DEFAULT_LLM_MODEL_KEY, *sys.argv[1:]]))

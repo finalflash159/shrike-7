@@ -1,8 +1,15 @@
-"""Smoke test: load PhoGPT-4B-Chat Q4_K_M and run 5 Vietnamese prompts."""
+"""Smoke test: load a local llama.cpp LLM and run 5 Vietnamese prompts."""
+
+from __future__ import annotations
+
+import argparse
+from collections.abc import Sequence
+
 from rich.console import Console
 from rich.table import Table
 
-from shrike7.llm import VietnameseLLM
+from shrike7.llm import LocalLlamaCppLLM
+from shrike7.llm.registry import DEFAULT_LLM_MODEL_KEY, LLM_MODEL_REGISTRY
 
 console = Console()
 
@@ -14,32 +21,59 @@ TEST_PROMPTS = [
     "Kể cho tôi một câu chuyện cười ngắn về lập trình viên.",
 ]
 
-console.print("[bold]Loading PhoGPT-4B-Chat Q4_K_M...[/bold]")
-llm = VietnameseLLM(n_threads=8, n_gpu_layers=-1)  # all on Metal
-console.print("[green]✓ Model loaded[/green]\n")
 
-# Warm-up (first call is slower due to KV cache init)
-console.print("[dim]Warming up...[/dim]")
-_ = llm.generate("Xin chào", max_tokens=20)
-console.print("[dim]Warm-up done.[/dim]\n")
-
-table = Table(title="LLM Smoke Test — PhoGPT-4B-Chat Q4_K_M", show_lines=True)
-table.add_column("Prompt", style="cyan", width=30)
-table.add_column("Response", style="white", width=50)
-table.add_column("TTFT (ms)", justify="right", style="yellow")
-table.add_column("Total (ms)", justify="right", style="yellow")
-table.add_column("tok/s", justify="right", style="magenta")
-table.add_column("# tok", justify="right")
-
-for prompt in TEST_PROMPTS:
-    r = llm.generate(prompt, max_tokens=120, temperature=0.7)
-    table.add_row(
-        prompt,
-        r.text[:200] + ("..." if len(r.text) > 200 else ""),
-        f"{r.ttft_ms:.0f}",
-        f"{r.total_latency_ms:.0f}",
-        f"{r.tokens_per_second:.1f}",
-        str(r.n_completion_tokens),
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Run a quick Shrike-7 LLM smoke test.")
+    parser.add_argument(
+        "--model",
+        default=DEFAULT_LLM_MODEL_KEY,
+        choices=sorted(LLM_MODEL_REGISTRY),
+        help="LLM registry key to load.",
     )
+    parser.add_argument("--max-tokens", type=int, default=120, help="Maximum tokens per prompt.")
+    parser.add_argument("--n-threads", type=int, default=8, help="llama.cpp CPU threads.")
+    parser.add_argument("--n-gpu-layers", type=int, default=-1, help="llama.cpp GPU layers.")
+    return parser
 
-console.print(table)
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+
+    console.print(f"[bold]Loading llama.cpp LLM:[/bold] {args.model}")
+    llm = LocalLlamaCppLLM(
+        model_key=args.model,
+        n_threads=args.n_threads,
+        n_gpu_layers=args.n_gpu_layers,
+    )
+    console.print("[green]✓ Model loaded[/green]\n")
+
+    # Warm-up: first call is often slower because llama.cpp initializes KV/cache paths.
+    console.print("[dim]Warming up...[/dim]")
+    _ = llm.generate("Xin chào", max_tokens=20)
+    console.print("[dim]Warm-up done.[/dim]\n")
+
+    table = Table(title=f"LLM Smoke Test — {args.model}", show_lines=True)
+    table.add_column("Prompt", style="cyan", width=30)
+    table.add_column("Response", style="white", width=80, overflow="fold")
+    table.add_column("TTFT (ms)", justify="right", style="yellow")
+    table.add_column("Total (ms)", justify="right", style="yellow")
+    table.add_column("tok/s", justify="right", style="magenta")
+    table.add_column("# tok", justify="right")
+
+    for prompt in TEST_PROMPTS:
+        result = llm.generate(prompt, max_tokens=args.max_tokens, temperature=0.7)
+        table.add_row(
+            prompt,
+            result.text,
+            f"{result.ttft_ms:.0f}",
+            f"{result.total_latency_ms:.0f}",
+            f"{result.tokens_per_second:.1f}",
+            str(result.n_completion_tokens),
+        )
+
+    console.print(table)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
