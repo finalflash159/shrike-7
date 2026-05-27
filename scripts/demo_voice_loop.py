@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from rich.console import Console
 from rich.panel import Panel
 
-from shrike7.asr import SpeechDetector
+from shrike7.asr import ASR_MODEL_REGISTRY, DEFAULT_ASR_MODEL_KEY, SpeechDetector
 from shrike7.asr.robust_asr import RobustASR
 from shrike7.asr.whisper_onnx import VietnameseASR
 from shrike7.core import EndpointConfig, SoundDevicePlayer, record_until_silence
@@ -26,6 +26,12 @@ def build_parser() -> argparse.ArgumentParser:
         choices=sorted(LLM_MODEL_REGISTRY),
         help="LLM registry key to load.",
     )
+    parser.add_argument(
+        "--asr-model",
+        default=DEFAULT_ASR_MODEL_KEY,
+        choices=sorted(ASR_MODEL_REGISTRY),
+        help="ASR registry key to load.",
+    )
     parser.add_argument("--voice", default="NF", help="TTS voice/speaker id.")
     parser.add_argument("--endpoint-silence-ms", type=int, default=700)
     parser.add_argument("--max-record-ms", type=int, default=10000)
@@ -36,7 +42,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
     detector = SpeechDetector()
-    asr = RobustASR(asr=VietnameseASR(), vad=detector)
+    asr = RobustASR(asr=VietnameseASR(model_key=args.asr_model), vad=detector)
     llm = LocalLlamaCppLLM(model_key=args.llm_model, n_threads=8, n_gpu_layers=-1)
     tts = VietnameseTTS(voice=args.voice)
     player = SoundDevicePlayer()
@@ -47,7 +53,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         max_record_ms=args.max_record_ms,
     )
 
-    console.print(f"[green]Voice loop ready[/green] LLM={args.llm_model} voice={args.voice}")
+    console.print(
+        f"[green]Voice loop ready[/green] ASR={args.asr_model} "
+        f"LLM={args.llm_model} voice={args.voice}"
+    )
+    console.print(
+        f"[dim]ASR guards:[/dim] BoH={asr.boh_status}; "
+        f"confidence={asr.confidence_guard_status}"
+    )
 
     while True:
         input("\nPress ENTER and speak. Ctrl+C to quit.")

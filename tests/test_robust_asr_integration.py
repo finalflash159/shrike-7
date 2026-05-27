@@ -17,9 +17,15 @@ DUMMY_AUDIO = np.zeros(16000, dtype=np.float32)
 
 
 class MockASR:
-    def __init__(self, text: str, avg_logprob: float = 0.0):
+    def __init__(
+        self,
+        text: str,
+        avg_logprob: float = 0.0,
+        model_key: str = "phowhisper_tiny",
+    ):
         self.text = text
         self.avg_logprob = avg_logprob
+        self.model_key = model_key
         self.calls = 0
 
     def transcribe(self, audio: np.ndarray) -> ASRResult:
@@ -53,8 +59,9 @@ class MockVAD:
 
 
 class MockBoH:
-    def __init__(self, phrase: str):
+    def __init__(self, phrase: str, model_key: str | None = None):
         self.phrase = phrase
+        self.model_key = model_key
 
     def match_and_clean(self, text: str) -> BoHMatch:
         if self.phrase not in text:
@@ -154,3 +161,53 @@ def test_filler_only_rejected_by_heuristic():
 
     assert result.text == ""
     assert result.rejection_reason == "heuristic:filler_only"
+
+
+def test_mismatched_boh_artifact_is_skipped():
+    pipeline = RobustASR(
+        asr=MockASR("xin chào thế giới", avg_logprob=0.0, model_key="phowhisper_base"),
+        vad=MockVAD(),
+        boh=MockBoH("xin chào", model_key="phowhisper_tiny"),
+        confidence_profile_model_key=None,
+    )
+
+    result = pipeline.transcribe(DUMMY_AUDIO)
+
+    assert result.text == "xin chào thế giới"
+    assert result.boh_matches == ()
+    assert result.boh_status == (
+        "skipped:model_mismatch:artifact=phowhisper_tiny,runtime=phowhisper_base"
+    )
+
+
+def test_unprofiled_asr_model_skips_tiny_confidence_guard():
+    pipeline = RobustASR(
+        asr=MockASR("xin chào thế giới", avg_logprob=-0.90, model_key="phowhisper_base"),
+        vad=MockVAD(),
+        boh=MockBoH("irrelevant"),
+        min_avg_logprob=-0.25,
+    )
+
+    result = pipeline.transcribe(DUMMY_AUDIO)
+
+    assert result.text == "xin chào thế giới"
+    assert result.rejection_reason == ""
+    assert result.confidence_guard_status == (
+        "skipped:model_mismatch:profile=phowhisper_tiny,runtime=phowhisper_base"
+    )
+
+
+def test_matching_confidence_profile_keeps_guard_enabled_for_custom_model():
+    pipeline = RobustASR(
+        asr=MockASR("xin chào thế giới", avg_logprob=-0.90, model_key="phowhisper_base"),
+        vad=MockVAD(),
+        boh=MockBoH("irrelevant"),
+        min_avg_logprob=-0.25,
+        confidence_profile_model_key="phowhisper_base",
+    )
+
+    result = pipeline.transcribe(DUMMY_AUDIO)
+
+    assert result.text == ""
+    assert result.rejection_reason == "low_confidence:-0.90"
+    assert result.confidence_guard_status == "enabled:phowhisper_base"

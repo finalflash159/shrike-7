@@ -47,7 +47,19 @@ class VietnameseBoH:
         #            cleaned_text="xin chào", n_chars_removed=27)
     """
 
-    DEFAULT_PATH = Path(__file__).resolve().parents[2] / "data" / "asr" / "vi_boh_v1.json"
+    DATA_ASR_DIR = Path(__file__).resolve().parents[2] / "data" / "asr"
+    MODEL_ARTIFACT_DIR = DATA_ASR_DIR / "boh"
+    DEFAULT_PATH = DATA_ASR_DIR / "vi_boh_v1.json"
+
+    @classmethod
+    def artifact_name_for_model(cls, model_key: str) -> str:
+        """Return the canonical BoH artifact filename for an ASR model key."""
+        return f"{model_key}_vi_boh_v1.json"
+
+    @classmethod
+    def path_for_model(cls, model_key: str) -> Path:
+        """Return the canonical model-specific BoH artifact path."""
+        return cls.MODEL_ARTIFACT_DIR / cls.artifact_name_for_model(model_key)
 
     def __init__(self, boh_path: str | Path | None = None):
         path = Path(boh_path) if boh_path else self.DEFAULT_PATH
@@ -69,6 +81,16 @@ class VietnameseBoH:
         self._ready = bool(self.boh_phrases)
         if self._ready:
             self.automaton.make_automaton()
+
+    @property
+    def model_key(self) -> str | None:
+        """ASR model key used to build this artifact, if metadata is present."""
+        value = self.metadata.get("model_key")
+        return str(value) if value else None
+
+    def is_compatible_with(self, model_key: str) -> bool:
+        """Return true when artifact metadata matches the requested ASR model."""
+        return self.model_key == model_key
 
     def match_and_clean(self, text: str) -> BoHMatch:
         """Find all BoH phrases in text. Return matched phrases + cleaned text.

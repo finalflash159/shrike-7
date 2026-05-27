@@ -33,6 +33,14 @@ class TestVietnameseBoH:
         # Skipped phrase should not be loaded
         assert len(boh) == 3
         assert "phrase to skip" not in boh.boh_phrases
+        assert boh.model_key == "test"
+        assert boh.is_compatible_with("test") is True
+        assert boh.is_compatible_with("phowhisper_tiny") is False
+
+    def test_model_artifact_path_uses_model_key(self):
+        path = VietnameseBoH.path_for_model("phowhisper_base")
+        assert path.name == "phowhisper_base_vi_boh_v1.json"
+        assert path.parent.name == "boh"
 
     def test_missing_artifact_raises(self, tmp_path):
         with pytest.raises(FileNotFoundError):
