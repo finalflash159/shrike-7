@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from shrike7.asr.registry import ASR_MODEL_REGISTRY, PHOWHISPER_ALLOW_PATTERNS
+
 # Repo root resolved at import time. `local/` is one level below the root.
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -90,37 +92,15 @@ ASR_DECODE_TASK = "transcribe"
 ASR_DECODE_STRATEGY = "greedy"
 
 MODEL_REGISTRY = {
-    "phowhisper_tiny": {
-        "repo_id": "huuquyet/PhoWhisper-tiny",
-        "local_subdir": "phowhisper-tiny-onnx",
-        "params_m": 39,
-    },
-    "phowhisper_base": {
-        "repo_id": "huuquyet/PhoWhisper-base",
-        "local_subdir": "phowhisper-base-onnx",
-        "params_m": 74,
-    },
-    "phowhisper_small": {
-        "repo_id": "huuquyet/PhoWhisper-small",
-        "local_subdir": "phowhisper-small-onnx",
-        "params_m": 244,
-    },
+    key: {
+        "repo_id": config.hf_repo,
+        "local_subdir": config.local_dir_name,
+        "params_m": config.params_m,
+    }
+    for key, config in ASR_MODEL_REGISTRY.items()
 }
 
-MODEL_ALLOW_PATTERNS = [
-    "onnx/encoder_model.onnx",
-    "onnx/decoder_model.onnx",
-    "config.json",
-    "generation_config.json",
-    "preprocessor_config.json",
-    "tokenizer.json",
-    "tokenizer_config.json",
-    "vocab.json",
-    "merges.txt",
-    "normalizer.json",
-    "added_tokens.json",
-    "special_tokens_map.json",
-]
+MODEL_ALLOW_PATTERNS = PHOWHISPER_ALLOW_PATTERNS
 
 # Provider priority on Mac. CoreML first, fall back to CPU.
 # Notebook 02 uses CUDA > CoreML > CPU because it may run on Colab GPU.

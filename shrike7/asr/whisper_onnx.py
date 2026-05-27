@@ -9,6 +9,8 @@ import numpy as np
 import onnxruntime as ort
 from transformers import WhisperProcessor
 
+from .registry import DEFAULT_ASR_MODEL_KEY, get_asr_model_config
+
 
 @dataclass
 class ASRResult:
@@ -23,7 +25,6 @@ class ASRResult:
 
 
 class VietnameseASR:
-    DEFAULT_MODEL_DIR = Path(__file__).resolve().parents[2] / "models" / "phowhisper-tiny-onnx"
     ENCODER_FILENAME = "encoder_model.onnx"
     DECODER_FILENAME = "decoder_model.onnx"
     BACKEND = "onnxruntime"
@@ -34,14 +35,17 @@ class VietnameseASR:
     def __init__(
         self,
         model_dir: Path | None = None,
+        model_key: str = DEFAULT_ASR_MODEL_KEY,
         num_threads: int = 4,
         providers: list[str] | None = None,
     ):
-        self.model_dir = Path(model_dir or self.DEFAULT_MODEL_DIR)
+        self.model_key = model_key
+        self.model_config = get_asr_model_config(model_key)
+        self.model_dir = Path(model_dir or self.model_config.local_dir)
         if not self.model_dir.exists():
             raise FileNotFoundError(
                 f"Model directory not found: {self.model_dir}\n"
-                "Run: uv run python scripts/download_phowhisper.py"
+                f"Run: {self.model_config.download_command}"
             )
 
         sess_opts = ort.SessionOptions()
@@ -90,6 +94,9 @@ class VietnameseASR:
         return {
             "backend": self.BACKEND,
             "asr_class": f"{self.__class__.__module__}.{self.__class__.__name__}",
+            "model_key": self.model_key,
+            "hf_repo": self.model_config.hf_repo,
+            "params_m": self.model_config.params_m,
             "model_dir": str(self.model_dir),
             "onnx_dir": str(self.onnx_dir),
             "encoder_filename": self.ENCODER_FILENAME,

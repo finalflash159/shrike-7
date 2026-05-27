@@ -1,76 +1,109 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Sequence
 from pathlib import Path
 
-MODEL_REGISTRY = {
-    "phowhisper_tiny": {
-        "repo_id": "huuquyet/PhoWhisper-tiny",
-        "local_subdir": "phowhisper-tiny-onnx",
-        "params_m": 39,
-    },
-    "phowhisper_base": {
-        "repo_id": "huuquyet/PhoWhisper-base",
-        "local_subdir": "phowhisper-base-onnx",
-        "params_m": 74,
-    },
-    "phowhisper_small": {
-        "repo_id": "huuquyet/PhoWhisper-small",
-        "local_subdir": "phowhisper-small-onnx",
-        "params_m": 244,
-    },
-    "phowhisper_medium": {
-        "repo_id": "huuquyet/PhoWhisper-medium",
-        "local_subdir": "phowhisper-medium-onnx",
-        "params_m": 769,
-    },
-}
+from rich.console import Console
+from rich.table import Table
 
-MODEL_ALLOW_PATTERNS = [
-    "onnx/encoder_model.onnx",
-    "onnx/decoder_model.onnx",
-    "config.json",
-    "generation_config.json",
-    "preprocessor_config.json",
-    "tokenizer.json",
-    "tokenizer_config.json",
-    "vocab.json",
-    "merges.txt",
-    "normalizer.json",
-    "added_tokens.json",
-    "special_tokens_map.json",
-    "quantize_config.json",
-]
+from shrike7.asr.registry import (
+    ASR_MODEL_REGISTRY,
+    DEFAULT_ASR_MODEL_KEY,
+    PHOWHISPER_ALLOW_PATTERNS,
+    ASRModelConfig,
+    get_asr_model_config,
+    get_asr_profile_model_keys,
+)
+
+console = Console()
 
 
-def download_model(model_key: str, models_dir: Path) -> Path:
+def dedupe_configs(configs: Sequence[ASRModelConfig]) -> list[ASRModelConfig]:
+    seen: set[str] = set()
+    result: list[ASRModelConfig] = []
+    for config in configs:
+        if config.model_key in seen:
+            continue
+        seen.add(config.model_key)
+        result.append(config)
+    return result
+
+
+def select_configs(model_keys: Sequence[str], profile: str | None) -> list[ASRModelConfig]:
+    selected: list[ASRModelConfig] = []
+    if profile:
+        selected.extend(get_asr_model_config(model_key) for model_key in get_asr_profile_model_keys(profile))
+    selected.extend(get_asr_model_config(model_key) for model_key in model_keys)
+    if not selected:
+        selected.append(get_asr_model_config(DEFAULT_ASR_MODEL_KEY))
+    return dedupe_configs(selected)
+
+
+def download_model(config: ASRModelConfig, models_dir: Path | None = None) -> Path:
     from huggingface_hub import snapshot_download
 
-    config = MODEL_REGISTRY[model_key]
-    local_dir = models_dir / config["local_subdir"]
+    local_dir = (models_dir / config.local_dir_name) if models_dir else config.local_dir
     local_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"Downloading {model_key}: {config['repo_id']} -> {local_dir}")
+    console.print(
+        f"[bold]Downloading[/bold] {config.model_key}\n"
+        f"  repo: {config.hf_repo}\n"
+        f"  dest: {local_dir}"
+    )
     snapshot_download(
-        repo_id=config["repo_id"],
+        repo_id=config.hf_repo,
         local_dir=str(local_dir),
-        allow_patterns=MODEL_ALLOW_PATTERNS,
+        allow_patterns=PHOWHISPER_ALLOW_PATTERNS,
     )
     return local_dir
+
+
+def print_model_table(configs: Sequence[ASRModelConfig], models_dir: Path | None = None) -> None:
+    table = Table(title="Shrike-7 PhoWhisper ONNX Models")
+    table.add_column("Key", style="cyan")
+    table.add_column("Role")
+    table.add_column("Params", justify="right")
+    table.add_column("Repo")
+    table.add_column("Exists", justify="center")
+
+    for config in configs:
+        local_dir = (models_dir / config.local_dir_name) if models_dir else config.local_dir
+        table.add_row(
+            config.model_key,
+            config.role,
+            f"{config.params_m}M",
+            config.hf_repo,
+            "yes" if local_dir.exists() else "no",
+        )
+
+    console.print(table)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Download PhoWhisper ONNX model files.")
     parser.add_argument(
         "--model",
-        choices=sorted(MODEL_REGISTRY),
-        default="phowhisper_tiny",
-        help="Model key to download. Default: phowhisper_tiny.",
+        action="append",
+        choices=sorted(ASR_MODEL_REGISTRY),
+        default=[],
+        help="ASR model key to download. May be passed multiple times.",
+    )
+    parser.add_argument(
+        "--profile",
+        choices=["minimal", "bakeoff", "full"],
+        default=None,
+        help="Download an ASR profile. minimal=tiny, bakeoff=tiny/base/small, full=all.",
     )
     parser.add_argument(
         "--all",
         action="store_true",
-        help="Download every registered model.",
+        help="Deprecated shortcut for --profile full.",
+    )
+    parser.add_argument(
+        "--list",
+        action="store_true",
+        help="List selected models without downloading.",
     )
     parser.add_argument(
         "--models-dir",
@@ -93,26 +126,29 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def resolve_models_dir(args: argparse.Namespace) -> Path:
+def resolve_models_dir(args: argparse.Namespace) -> Path | None:
     if args.models_dir is not None:
         return args.models_dir
     if args.storage == "drive":
         return args.drive_root / "models"
-    return Path(__file__).resolve().parents[1] / "models"
+    return None
 
 
 def main() -> None:
     args = parse_args()
-    model_keys = sorted(MODEL_REGISTRY) if args.all else [args.model]
+    profile = "full" if args.all else args.profile
     models_dir = resolve_models_dir(args)
+    configs = select_configs(args.model, profile)
 
-    downloaded = []
-    for model_key in model_keys:
-        downloaded.append(download_model(model_key, models_dir))
+    print_model_table(configs, models_dir=models_dir)
+    if args.list:
+        return
 
-    print("Done.")
+    downloaded = [download_model(config, models_dir=models_dir) for config in configs]
+
+    console.print("[green]Done.[/green]")
     for path in downloaded:
-        print(f"- {path}")
+        console.print(f"- {path}")
 
 
 if __name__ == "__main__":

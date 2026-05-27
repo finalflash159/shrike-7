@@ -8,6 +8,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from shrike7.asr.registry import ASR_MODEL_REGISTRY, DEFAULT_ASR_MODEL_KEY, get_asr_model_config
 from shrike7.llm.registry import DEFAULT_LLM_MODEL_KEY, LLM_MODEL_REGISTRY, get_model_config
 
 console = Console()
@@ -35,9 +36,10 @@ def main() -> None:
 @main.command()
 def status() -> None:
     """Show local artifact status."""
+    default_asr = get_asr_model_config(DEFAULT_ASR_MODEL_KEY)
     default_llm = get_model_config(DEFAULT_LLM_MODEL_KEY)
     paths = {
-        "PhoWhisper ONNX": REPO_ROOT / "models" / "phowhisper-tiny-onnx",
+        f"Default ASR ONNX ({DEFAULT_ASR_MODEL_KEY})": default_asr.local_dir,
         f"Default LLM GGUF ({DEFAULT_LLM_MODEL_KEY})": default_llm.local_path,
         "Noise manifest": REPO_ROOT / "data" / "noise_for_boh" / "manifest.jsonl",
         "FLEURS manifest": REPO_ROOT / "data" / "fleurs_vi" / "manifest.jsonl",
@@ -57,9 +59,37 @@ def status() -> None:
 
 
 @main.command("asr-smoke")
-def asr_smoke() -> None:
+@click.option(
+    "--model",
+    default=DEFAULT_ASR_MODEL_KEY,
+    type=click.Choice(sorted(ASR_MODEL_REGISTRY)),
+    show_default=True,
+)
+def asr_smoke(model: str) -> None:
     """Run the local ASR smoke test on recorded sample audio."""
-    run_script(str(REPO_ROOT / "scripts" / "smoke_test_asr.py"))
+    run_script(str(REPO_ROOT / "scripts" / "smoke_test_asr.py"), "--model", model)
+
+
+@main.command("asr-models")
+def asr_models() -> None:
+    """List registered PhoWhisper ONNX candidates."""
+    table = Table(title="Shrike-7 ASR Registry")
+    table.add_column("Key", style="cyan")
+    table.add_column("Role")
+    table.add_column("Params", justify="right")
+    table.add_column("Exists", justify="center")
+    table.add_column("Path")
+
+    for config in ASR_MODEL_REGISTRY.values():
+        table.add_row(
+            config.model_key,
+            config.role,
+            f"{config.params_m}M",
+            "yes" if config.local_dir.exists() else "no",
+            str(config.local_dir),
+        )
+
+    console.print(table)
 
 
 @main.command("llm-smoke")

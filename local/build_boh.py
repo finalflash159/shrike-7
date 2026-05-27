@@ -21,7 +21,7 @@ import shutil
 import time
 import unicodedata
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import click
@@ -134,7 +134,12 @@ def build_boh(
     repo_id = cfg.MODEL_REGISTRY[model_key]["repo_id"]
 
     console.rule(f"Building BoH for {model_key}")
-    asr = VietnameseASR(model_dir=model_dir, num_threads=cfg.NUM_THREADS, providers=providers)
+    asr = VietnameseASR(
+        model_key=model_key,
+        model_dir=model_dir,
+        num_threads=cfg.NUM_THREADS,
+        providers=providers,
+    )
     runtime_identity = asr.runtime_metadata(max_new_tokens=max_new_tokens)
 
     log_dir = cfg.LOCAL_OUTPUTS_DIR / run_id / "logs" / "boh_runs" / model_key
@@ -226,7 +231,7 @@ def build_boh(
             "selection_rule": f"count >= {cfg.MIN_COUNT} and len >= {cfg.MIN_CHARS} chars before manual review",
             "normalization": "NFC + lowercase + whitespace collapse + boundary punctuation strip",
             "created_by": "local.build_boh",
-            "created_at_utc": datetime.now(timezone.utc).isoformat(),
+            "created_at_utc": datetime.now(UTC).isoformat(),
             "raw_output_jsonl": str(raw_jsonl),
             "providers": providers,
             "elapsed_s": elapsed_s,
@@ -289,7 +294,7 @@ def main(
             f"--runtime-model '{runtime_model}' must be one of --model values {model_keys}"
         )
 
-    run_id = "d2_5_build_vietnamese_boh_local_" + datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    run_id = "d2_5_build_vietnamese_boh_local_" + datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     provider_list = resolve_providers(providers)
     items = load_manifest(max_files)
 

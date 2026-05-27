@@ -60,6 +60,62 @@ on FLEURS, **not** Common Voice VI.
 
 ---
 
+## D1.1 — ASR Model-Size Bake-Off (PhoWhisper ONNX)
+
+**Purpose:** check whether moving beyond `PhoWhisper-tiny` is worth it before
+changing the default ASR model.
+
+**Setup**
+
+| Field | Value |
+| --- | --- |
+| Runtime | `shrike7.asr.VietnameseASR` with model registry selection |
+| Decode | Same greedy autoregressive decoder, no KV cache |
+| Providers | `CoreMLExecutionProvider`, `CPUExecutionProvider` fallback |
+| Eval data | FLEURS Vietnamese local slice |
+| Run date | 2026-05-27 |
+| Main output | `eval/results/asr_bakeoff_profile_bakeoff_n20_20260527_014702.json` (gitignored) |
+| Medium sanity output | `eval/results/asr_bakeoff_profile_full_n5_20260527_015434.json` (gitignored) |
+
+**Main result: tiny/base/small on 20 FLEURS samples**
+
+| Model | Params | WER | CER | Avg RTF | P95 RTF | P50 latency | P95 latency |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `phowhisper_tiny` | 39M | 15.58% | 6.96% | 0.118 | 0.161 | 1342 ms | 1967 ms |
+| `phowhisper_base` | 74M | 11.78% | 5.45% | 0.230 | 0.318 | 2709 ms | 3855 ms |
+| `phowhisper_small` | 244M | 10.33% | 5.12% | 0.647 | 0.902 | 7695 ms | 10583 ms |
+
+**Medium sanity check: 5 FLEURS samples**
+
+| Model | Params | WER | CER | Avg RTF | P95 RTF | P50 latency | P95 latency |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `phowhisper_medium` | 769M | 5.88% | 1.52% | 1.744 | 1.967 | 15222 ms | 16734 ms |
+
+**Decision**
+
+- `phowhisper_base` is the best next ASR candidate to test in the voice loop:
+  it improves WER meaningfully over tiny on the 20-sample slice while keeping
+  RTF comfortably below real-time.
+- `phowhisper_small` improves WER further, but current greedy/no-cache decode
+  pushes p95 latency above 10 seconds on this slice. It is useful for quality
+  comparison, not as the default real-time ASR path yet.
+- `phowhisper_medium` loads and runs, but is already slower than real-time with
+  the current decoder path. Treat it as a quality-ceiling probe until KV-cache,
+  merged decoder, quantized decoder, or a different runtime is implemented.
+- Do not rebuild BoH/thresholds for larger ASR models until one is selected for
+  the production path; the existing robustness artifacts remain tied to
+  `phowhisper_tiny`.
+
+**Caveats**
+
+- These are small local slices, not final ASR claims.
+- The first 5 FLEURS samples are not representative enough to rank medium
+  quality; they only show runtime feasibility and approximate latency.
+- Larger PhoWhisper models may change hallucination behavior, so RobustASR
+  thresholds and BoH must be recalibrated before switching production ASR.
+
+---
+
 ## D2 — LLM Baseline (PhoGPT-4B-Chat Q4_K_M via llama.cpp)
 
 **Setup**
