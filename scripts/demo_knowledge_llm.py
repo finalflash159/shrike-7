@@ -16,11 +16,23 @@ from shrike7.knowledge import (
 )
 from shrike7.llm import LocalLlamaCppLLM
 from shrike7.llm.registry import DEFAULT_LLM_MODEL_KEY, LLM_MODEL_REGISTRY
+from shrike7.memory import MarkdownLongTermMemory, MemoryContext, MemoryContextBuilder
 
 console = Console()
 
 
-def build_grounded_prompt(question: str, context: KnowledgeContext) -> str:
+def build_grounded_prompt(
+    question: str,
+    context: KnowledgeContext,
+    memory_context: MemoryContext | None = None,
+) -> str:
+    memory_block = ""
+    if memory_context is not None and memory_context.prompt_text:
+        memory_block = f"""
+Memory:
+{memory_context.prompt_text}
+"""
+
     return f"""Bạn là trợ lý tiếng Việt trả lời dựa trên ghi chú địa phương.
 
 Quy tắc:
@@ -32,6 +44,7 @@ Quy tắc:
 
 Ghi chú địa phương:
 {context.prompt_text}
+{memory_block}
 
 Câu hỏi của người dùng:
 {question}
@@ -56,10 +69,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--max-hits", type=int, default=3, help="Maximum retrieved notes.")
     parser.add_argument("--context-chars", type=int, default=1800, help="Maximum knowledge context characters.")
+    parser.add_argument("--memory-chars", type=int, default=800, help="Maximum long-term memory characters.")
     parser.add_argument("--max-tokens", type=int, default=180, help="Maximum LLM answer tokens.")
     parser.add_argument("--temperature", type=float, default=0.2, help="LLM sampling temperature.")
     parser.add_argument("--n-threads", type=int, default=8, help="llama.cpp CPU threads.")
     parser.add_argument("--n-gpu-layers", type=int, default=-1, help="llama.cpp GPU layers.")
+    parser.add_argument("--no-memory", action="store_true", help="Disable long-term profile memory.")
     parser.add_argument("--show-context", action="store_true", help="Print the retrieved prompt context.")
     return parser
 
@@ -74,11 +89,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         max_chars=args.context_chars,
     )
     context = builder.build(args.query)
-    prompt = build_grounded_prompt(args.query, context)
+    memory_context = None
+    if not args.no_memory:
+        long_term_memory = MarkdownLongTermMemory(args.vault, max_chars=args.memory_chars)
+        memory_context = MemoryContextBuilder(
+            long_term=long_term_memory,
+            max_chars=args.memory_chars,
+            profile_chars=args.memory_chars,
+        ).build()
+
+    prompt = build_grounded_prompt(args.query, context, memory_context)
 
     console.print(Panel(args.query, title="Question", border_style="cyan"))
     if args.show_context:
         console.print(Panel(context.prompt_text, title="Retrieved Context", border_style="yellow"))
+        if memory_context is not None and memory_context.prompt_text:
+            console.print(Panel(memory_context.prompt_text, title="Memory Context", border_style="blue"))
 
     if context.citations:
         citations = "\n".join(f"- {item.path} :: {item.title}" for item in context.citations)
