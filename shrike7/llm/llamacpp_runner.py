@@ -16,6 +16,7 @@ from llama_cpp import Llama
 
 from .base import LLMResult
 from .prompts import (
+    StreamingOutputCleaner,
     build_chat_messages,
     build_completion_prompt,
     clean_model_output,
@@ -181,11 +182,14 @@ class LocalLlamaCppLLM:
         inject_persona: bool = True,
     ) -> Iterator[str]:
         self._validate_generation_args(user_msg, max_tokens, temperature, top_p)
+        cleaner = StreamingOutputCleaner(self.config)
 
         for chunk in self._stream_chunks(user_msg, max_tokens, temperature, top_p, inject_persona):
             tok_text = self._chunk_text(chunk)
             if tok_text:
-                yield tok_text
+                yield from cleaner.feed(tok_text)
+
+        yield from cleaner.flush()
 
 
 __all__ = ["LocalLlamaCppLLM"]

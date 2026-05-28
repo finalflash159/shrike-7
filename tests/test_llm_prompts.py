@@ -1,6 +1,7 @@
 import pytest
 
 from shrike7.llm.prompts import (
+    StreamingOutputCleaner,
     build_chat_messages,
     build_completion_prompt,
     clean_model_output,
@@ -89,6 +90,27 @@ def test_clean_model_output_keeps_angle_text_when_reasoning_disabled() -> None:
     text = "<tag>Xin chào</tag>"
 
     assert clean_model_output(text, config) == "<tag>Xin chào</tag>"
+
+
+def test_streaming_output_cleaner_strips_reasoning_across_chunks() -> None:
+    config = get_model_config("qwen3_0_6b_q8_0")
+    cleaner = StreamingOutputCleaner(config)
+
+    output: list[str] = []
+    for chunk in ["<thi", "nk>ẩn", " nội bộ</thi", "nk>\n\nXin", " chào!"]:
+        output.extend(cleaner.feed(chunk))
+    output.extend(cleaner.flush())
+
+    assert "".join(output) == "Xin chào!"
+
+
+def test_streaming_output_cleaner_keeps_angle_text_when_reasoning_disabled() -> None:
+    config = get_model_config("arcee_vylinh_3b_q4_k_m")
+    cleaner = StreamingOutputCleaner(config)
+
+    output = cleaner.feed("<tag>Xin chào</tag>") + cleaner.flush()
+
+    assert output == ["<tag>Xin chào</tag>"]
 
 
 def test_uses_completion_prompt() -> None:
