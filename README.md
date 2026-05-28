@@ -1,55 +1,288 @@
 # Shrike-7
 
-Trợ lý giọng nói tiếng Việt theo hướng offline-first, tối ưu cho inference cục bộ trên thiết bị edge.
+Offline-first Vietnamese voice assistant toolkit for local ASR, LLM, TTS, knowledge, memory, and tool-runtime experiments.
 
-Hướng pipeline hiện tại:
+Shrike-7 is being built as a fully local Vietnamese assistant. The current repo already runs a local voice loop on macOS: microphone input is endpointed with VAD, transcribed by PhoWhisper ONNX, answered by a local GGUF LLM through llama.cpp, synthesized with Valtec TTS, and played back through the system audio device.
+
+The project is intentionally research-heavy: every model choice is backed by small local bake-offs before it becomes the default path.
+
+## Current Status
+
+Works today:
+
+- Local voice loop demo: `mic -> VAD endpoint -> PhoWhisper ASR -> local LLM -> Valtec TTS -> audio output`.
+- ASR registry for `phowhisper_tiny`, `phowhisper_base`, `phowhisper_small`, and `phowhisper_medium`.
+- RobustASR wrapper with VAD, de-looping, confidence guards, BoH matching, and hallucination heuristics.
+- llama.cpp LLM registry with PhoGPT baseline, Arcee-VyLinh candidate, Qwen low-RAM fallback, and larger research probes.
+- Valtec Vietnamese TTS wrapper with multi-speaker support.
+- Local Markdown knowledge vault, manual long-term profile memory, and RAM-only session memory.
+- ToolRuntime foundation with typed tool specs, argument validation, side-effect levels, and local tools.
+- CLI, smoke tests, eval scripts, and benchmark reports.
+
+Still in progress:
+
+- Full assistant runtime policy that decides when to use knowledge, tools, memory, or free chat.
+- Production guardrails and eval harness for tool calls.
+- ASR robustness recalibration for larger PhoWhisper models.
+- Raspberry Pi or ARM-board validation. Current numbers are Mac local measurements.
+
+## Architecture
 
 ```text
-Mic/audio -> VAD -> PhoWhisper ASR -> intent/LLM -> response
+Audio input
+  -> endpoint / VAD
+  -> RobustASR
+       -> PhoWhisper ONNX
+       -> model-specific confidence / BoH guards
+  -> memory-aware LLM wrapper
+       -> manual long-term profile memory
+       -> short-term session memory
+  -> llama.cpp GGUF LLM
+  -> sentence chunking
+  -> Valtec TTS
+  -> audio output
 ```
 
-## Trọng Tâm Hiện Tại
-
-- D1: PhoWhisper-tiny ONNX ASR baseline.
-- D2: PhoGPT GGUF local LLM baseline.
-- D2.5: ASR robustness đã benchmark xong.
-- Phase 3: hoàn thiện voice loop với intent/LLM/TTS/audio output.
-
-## Kết Quả Hiện Tại
-
-- ASR baseline: PhoWhisper-tiny ONNX greedy decode trên FLEURS vi_vn đạt 23.60% WER.
-- LLM baseline: PhoGPT-4B-Chat Q4_K_M chạy local qua llama.cpp Metal, ~62.8 tok/s.
-- ASR robustness D2.5: `RobustASR` giảm hallucination trên non-speech từ 100% xuống 0%
-  trên 50 noise samples, giữ WER gần như không đổi trên 200 speech samples
-  (25.45% raw → 25.22% full pipeline).
-
-Xem số đo chi tiết trong [BENCHMARKS.md](BENCHMARKS.md).
-
-## Workflow Research Trên Colab
-
-Shrike-7 tách rõ research và runtime:
-
-- **Colab**: thu thập data, xử lý audio, xây dựng Vietnamese Bag of Hallucinations, calibrate threshold, và tùy chọn fine-tune/export model.
-- **Local repo**: chạy offline inference, demo, benchmark, và production pipeline code.
-- **Google Drive/Hugging Face**: lưu artifact nặng như dataset, checkpoint, file ONNX/GGUF, và benchmark output.
-
-Xem thêm:
-
-- [ASR hallucination robustness notes](notes/asr_research.md)
-- [Plan D2.5 ASR robustness theo hướng Colab](zplan/asr_robustness_colab_plan.md)
-- [Workflow notebook](notebooks/README.md)
-
-## Chính Sách Artifact
-
-Repo chỉ commit code, config, docs, script, và notebook. Không commit generated data, model weights, hoặc benchmark output.
-
-Các folder artifact local đang được ignore:
+Planned assistant-runtime layer:
 
 ```text
-data/
+User turn
+  -> guardrails
+  -> knowledge retrieval when useful
+  -> ToolRuntime for deterministic local actions
+  -> LLM response generation
+  -> final response checks
+```
+
+## Quickstart
+
+### 1. Create the Python environment
+
+Shrike-7 uses Python 3.11 and `uv`.
+
+```bash
+uv sync --extra dev --extra eval --extra tts
+```
+
+If you need to rebuild `llama-cpp-python` with Apple Metal support:
+
+```bash
+CMAKE_ARGS="-DGGML_METAL=on" FORCE_CMAKE=1 \
+  uv pip install --force-reinstall --no-cache-dir llama-cpp-python
+```
+
+### 2. Inspect registered models
+
+```bash
+uv run shrike-7 asr-models
+uv run shrike-7 llm-models
+```
+
+### 3. Download local models
+
+Fast voice-loop test setup:
+
+```bash
+uv run python scripts/download_phowhisper.py --model phowhisper_base
+uv run python scripts/download_llm.py --model arcee_vylinh_3b_q4_k_m
+```
+
+Quality-testing ASR setup:
+
+```bash
+uv run python scripts/download_phowhisper.py --model phowhisper_small
+```
+
+For bake-offs:
+
+```bash
+uv run python scripts/download_phowhisper.py --profile bakeoff
+uv run python scripts/download_llm.py --profile bakeoff
+```
+
+### 4. Initialize a local knowledge vault
+
+The default runtime expects a local Markdown vault at `~/KnowledgeVault`.
+
+```bash
+uv run python scripts/init_knowledge_vault.py ~/KnowledgeVault
+```
+
+Put compiled notes under `~/KnowledgeVault/wiki/`, and manually curated profile memory in:
+
+```text
+~/KnowledgeVault/memory/profile.md
+```
+
+The runtime reads local Markdown only. It does not auto-write long-term memory.
+Your local vault contents are not committed to this repo.
+
+### 5. Run the voice loop
+
+```bash
+uv run python scripts/demo_voice_loop.py \
+  --asr-model phowhisper_base \
+  --llm-model arcee_vylinh_3b_q4_k_m
+```
+
+Then press Enter, speak, stop speaking, and wait for the assistant to answer.
+
+Useful variants:
+
+```bash
+# Disable memory
+uv run python scripts/demo_voice_loop.py --no-memory
+
+# Use PhoGPT baseline
+uv run python scripts/demo_voice_loop.py --llm-model phogpt_4b_q4_k_m
+
+# Use the current quality-testing ASR default explicitly
+uv run python scripts/demo_voice_loop.py --asr-model phowhisper_small
+```
+
+## Other Demos
+
+Record one endpointed utterance:
+
+```bash
+uv run python scripts/demo_endpoint_record.py
+```
+
+Run ASR on test audio:
+
+```bash
+uv run python scripts/record_test_audio.py
+uv run python scripts/smoke_test_asr.py --model phowhisper_base
+```
+
+Run an LLM smoke test:
+
+```bash
+uv run python scripts/smoke_test_llm.py --model arcee_vylinh_3b_q4_k_m
+```
+
+Ask a local LLM using Markdown knowledge context:
+
+```bash
+uv run python scripts/demo_knowledge_llm.py \
+  "Bữa sáng nhanh nhưng đủ chất nên ăn gì?" \
+  --model arcee_vylinh_3b_q4_k_m \
+  --show-context
+```
+
+Chat with profile memory and session memory:
+
+```bash
+uv run python scripts/demo_memory_chat.py --model arcee_vylinh_3b_q4_k_m
+```
+
+Smoke-test the knowledge vault after adding notes under `~/KnowledgeVault/wiki/`:
+
+```bash
+uv run python scripts/smoke_test_knowledge.py --query "bữa sáng nhanh lành mạnh"
+```
+
+## Benchmarks
+
+Detailed benchmark notes are in [BENCHMARKS.md](BENCHMARKS.md). The short version:
+
+- PhoWhisper-tiny ONNX baseline on FLEURS Vietnamese: 23.60% WER, 12.44% CER, about 20x real-time on the D1 setup.
+- ASR model-size bake-off showed `phowhisper_base` as the best next real-time candidate among tiny/base/small for the current greedy decoder path.
+- PhoGPT-4B Q4_K_M baseline through llama.cpp/Metal: about 61 ms TTFT and 62.8 tok/s in the D2 run.
+- LLM bake-off currently keeps PhoGPT as the historical baseline, Arcee-VyLinh as the leading free-chat candidate, and Qwen3-0.6B as a low-RAM fallback.
+- RobustASR for `phowhisper_tiny` reduced tested non-speech hallucinations to explicit rejects in the D2.5 pilot benchmark while keeping speech false positives at zero in that pilot slice.
+
+Important caveats:
+
+- Benchmark numbers are local Mac measurements, not Raspberry Pi claims.
+- LLM behavioral rates are heuristic screeners, not human preference scores.
+- RobustASR confidence and BoH artifacts are model-specific. The existing calibrated artifacts target `phowhisper_tiny`; larger ASR models should be recalibrated before production use.
+
+## Model Artifacts
+
+Model files are downloaded locally and are not committed.
+
+Default locations:
+
+```text
 models/
+external/valtec-tts/
+~/KnowledgeVault/
+```
+
+`external/valtec-tts` is vendored source used by the TTS wrapper. If it is missing, clone it before running TTS:
+
+```bash
+git clone https://github.com/tronghieuit/valtec-tts.git external/valtec-tts
+rm -rf external/valtec-tts/.git
+```
+
+The Valtec model weights are downloaded by the upstream package into the user cache on first use.
+
+## Repository Layout
+
+```text
+shrike7/
+  asr/        PhoWhisper ONNX runtime, VAD, RobustASR, BoH, de-looping
+  core/       endpointing, streaming pipeline, metrics, audio output
+  llm/        llama.cpp runner, prompt styles, model registry, memory wrapper
+  tts/        Valtec TTS wrapper and audio result types
+  knowledge/  Markdown vault search and context packing
+  memory/     manual long-term profile memory and RAM session memory
+  tools/      ToolRuntime, tool specs, local time/timer/knowledge tools
+
+scripts/      local demos, smoke tests, download helpers
+eval/         ASR and LLM evaluation harnesses
+notes/        research notes
+zplan/        local planning docs, gitignored
+```
+
+## Development Checks
+
+Run focused checks while developing:
+
+```bash
+uv run ruff check shrike7 tests --fix
+uv run python -m compileall -q shrike7 tests
+uv run pytest -q
+```
+
+LLM and ASR smoke tests require downloaded models:
+
+```bash
+uv run shrike-7 asr-smoke --model phowhisper_base
+uv run shrike-7 llm-smoke --model arcee_vylinh_3b_q4_k_m
+```
+
+## Artifact Policy
+
+This repo should commit source code, configs, docs, tests, and lightweight scripts only.
+
+Ignored local artifacts include:
+
+```text
+models/
+data/
 eval/results/
 notebooks/outputs/
 notebooks/runs/
 notebooks/artifacts/
+runs/
+logs/
+*.wav
+*.mp3
 ```
+
+## Roadmap
+
+Near-term work:
+
+- D6 assistant runtime: connect guardrails, knowledge context, memory, and ToolRuntime into one deterministic turn planner.
+- Recalibrate ASR robustness for the selected larger PhoWhisper model.
+- Add post-router LLM evaluation instead of sending every prompt directly to the LLM.
+- Improve streaming latency and first-audio timing.
+- Package a clean local demo flow for public GitHub review.
+
+## License
+
+Shrike-7 project code is MIT licensed. Third-party models, datasets, and vendored source packages keep their own licenses and model-card restrictions.
