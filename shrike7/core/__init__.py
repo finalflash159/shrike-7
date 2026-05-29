@@ -14,11 +14,15 @@ from .guardrails import (
 )
 from .metrics import MetricsLogger
 from .pipeline import PipelineResult, VoicePipeline
+from .runtime import AssistantRuntime, DefaultRuntimeToolRouter, RuntimeOptions, RuntimeToolRouter
 from .streaming import StreamingEvent, pop_ready_sentence
 from .text_chunking import split_sentences
+from .turn import RuntimeResult, RuntimeRoute, RuntimeTrace, TurnFrame
 
 __all__ = [
     "AudioSink",
+    "AssistantRuntime",
+    "DefaultRuntimeToolRouter",
     "EndpointConfig",
     "GuardrailAction",
     "GuardrailEvent",
@@ -27,9 +31,15 @@ __all__ = [
     "MetricsLogger",
     "NullAudioPlayer",
     "PlaybackResult",
+    "RuntimeOptions",
+    "RuntimeResult",
+    "RuntimeRoute",
+    "RuntimeTrace",
+    "RuntimeToolRouter",
     "SoundDevicePlayer",
     "WavFileSink",
     "PipelineResult",
+    "TurnFrame",
     "VoicePipeline",
     "block_samples",
     "check_final_output",

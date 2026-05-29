@@ -17,12 +17,13 @@ Works today:
 - Valtec Vietnamese TTS wrapper with multi-speaker support.
 - Local Markdown knowledge vault, manual long-term profile memory, and RAM-only session memory.
 - ToolRuntime foundation with typed tool specs, argument validation, side-effect levels, and local tools.
+- Text-only AssistantRuntime with staged guardrails, swappable tool routing, knowledge/memory prompt assembly, citations, and trace output.
 - CLI, smoke tests, eval scripts, and benchmark reports.
 
 Still in progress:
 
-- Full assistant runtime policy that decides when to use knowledge, tools, memory, or free chat.
-- Guardrail integration inside the full assistant runtime, plus runtime eval harnesses.
+- VoicePipeline integration with AssistantRuntime.
+- Runtime eval harnesses for tool selection, knowledge citation, and guardrail behavior.
 - ASR robustness recalibration for larger PhoWhisper models.
 - Raspberry Pi or ARM-board validation. Current numbers are Mac local measurements.
 
@@ -43,7 +44,7 @@ Audio input
   -> audio output
 ```
 
-Planned assistant-runtime layer:
+Text-only assistant-runtime layer:
 
 ```text
 User turn
@@ -176,6 +177,14 @@ Chat with profile memory and session memory:
 uv run python scripts/demo_memory_chat.py --model arcee_vylinh_3b_q4_k_m
 ```
 
+Run the text-only AssistantRuntime with tools, knowledge, memory, guardrails, and trace:
+
+```bash
+uv run python scripts/demo_assistant_runtime.py \
+  --model arcee_vylinh_3b_q4_k_m \
+  --show-trace
+```
+
 Smoke-test the knowledge vault after adding notes under `~/KnowledgeVault/wiki/`:
 
 ```bash
@@ -277,7 +286,7 @@ logs/
 
 Near-term work:
 
-- D7 assistant runtime: connect guardrails, knowledge context, memory, and ToolRuntime into one deterministic turn planner.
+- D8 voice integration: route ASR transcripts through AssistantRuntime before TTS.
 - Recalibrate ASR robustness for the selected larger PhoWhisper model.
 - Add post-router LLM evaluation instead of sending every prompt directly to the LLM.
 - Improve streaming latency and first-audio timing.
