@@ -12,6 +12,7 @@ import numpy as np
 from shrike7.core.audio_out import AudioSink, NullAudioPlayer
 from shrike7.core.metrics import MetricsLogger
 from shrike7.core.streaming import StreamingEvent, pop_ready_sentence
+from shrike7.core.text_chunking import split_sentences
 from shrike7.tts import TTSResult
 
 
@@ -26,6 +27,7 @@ class PipelineResult:
     total_latency_ms: float
     asr_result: Any | None = None
     llm_result: Any | None = None
+    runtime_result: Any | None = None
 
 
 class VoicePipeline:
@@ -34,12 +36,14 @@ class VoicePipeline:
         asr: Any,
         llm: Any,
         tts: Any,
+        assistant_runtime: Any | None = None,
         metrics: MetricsLogger | None = None,
         reject_response: str = "Mình chưa nghe rõ, bạn nói lại nhé.",
     ) -> None:
         self.asr = asr
         self.llm = llm
         self.tts = tts
+        self.assistant_runtime = assistant_runtime
         self.metrics = metrics or MetricsLogger()
         self.reject_response = reject_response
 
@@ -65,10 +69,24 @@ class VoicePipeline:
                 asr_result=asr_result,
             )
 
-        with self.metrics.stage("llm"):
-            llm_result = self.llm.generate(transcript)
+        llm_result = None
+        runtime_result = None
+        if self.assistant_runtime is not None:
+            with self.metrics.stage("runtime"):
+                runtime_result = self.assistant_runtime.run_text_turn(
+                    transcript,
+                    source="asr",
+                    metadata={
+                        "asr_rejection_reason": rejection_reason,
+                    },
+                )
+            response_text = getattr(runtime_result, "response_text", "").strip()
+            llm_result = getattr(runtime_result, "llm_result", None)
+        else:
+            with self.metrics.stage("llm"):
+                llm_result = self.llm.generate(transcript)
 
-        response_text = getattr(llm_result, "text", "").strip()
+            response_text = getattr(llm_result, "text", "").strip()
 
         with self.metrics.stage("tts"):
             tts_result = self.tts.synthesize(response_text)
@@ -83,6 +101,7 @@ class VoicePipeline:
             total_latency_ms=(time.perf_counter() - t0) * 1000,
             asr_result=asr_result,
             llm_result=llm_result,
+            runtime_result=runtime_result,
         )
 
     def turn_streaming(
@@ -115,6 +134,85 @@ class VoicePipeline:
                 metadata={
                     "rejected": True,
                     "rejection_reason": rejection_reason or "empty_transcript",
+                },
+            )
+            return
+
+        if self.assistant_runtime is not None:
+            with self.metrics.stage("runtime"):
+                runtime_result = self.assistant_runtime.run_text_turn(
+                    transcript,
+                    source="asr",
+                    metadata={
+                        "asr_rejection_reason": rejection_reason,
+                    },
+                )
+
+            response_text = getattr(runtime_result, "response_text", "").strip()
+            trace = getattr(runtime_result, "trace", None)
+            citations = getattr(runtime_result, "citations", ())
+            yield StreamingEvent(
+                type="runtime",
+                text=response_text,
+                metadata={
+                    "route": getattr(getattr(runtime_result, "route", None), "value", ""),
+                    "blocked": bool(getattr(runtime_result, "blocked", False)),
+                    "used_tool": bool(getattr(trace, "used_tool", False)),
+                    "used_llm": bool(getattr(trace, "used_llm", False)),
+                    "citations": [
+                        {"path": item.path, "title": item.title}
+                        for item in citations
+                    ],
+                },
+            )
+
+            first_audio_time: float | None = None
+            for index, sentence in enumerate(split_sentences(response_text)):
+                yield StreamingEvent(type="sentence", text=sentence)
+
+                with self.metrics.stage(f"tts_{index}"):
+                    tts_result = self.tts.synthesize(sentence)
+
+                if first_audio_time is None:
+                    first_audio_time = time.perf_counter()
+
+                yield StreamingEvent(
+                    type="tts",
+                    text=sentence,
+                    audio=tts_result.audio,
+                    sample_rate=tts_result.sample_rate,
+                    tts=tts_result,
+                    latency_ms=tts_result.latency_ms,
+                    metadata={
+                        "chunk_index": index,
+                        "ttfa_ms": (first_audio_time - t0) * 1000,
+                    },
+                )
+
+                playback = sink.play(tts_result.audio, tts_result.sample_rate, blocking=True)
+
+                yield StreamingEvent(
+                    type="audio",
+                    text=sentence,
+                    audio=tts_result.audio,
+                    sample_rate=tts_result.sample_rate,
+                    tts=tts_result,
+                    latency_ms=playback.latency_ms,
+                    metadata={
+                        "chunk_index": index,
+                        "ttfa_ms": (first_audio_time - t0) * 1000,
+                    },
+                )
+
+            yield StreamingEvent(
+                type="done",
+                text=response_text,
+                latency_ms=(time.perf_counter() - t0) * 1000,
+                metadata={
+                    "rejected": False,
+                    "runtime_blocked": bool(getattr(runtime_result, "blocked", False)),
+                    "runtime_route": getattr(getattr(runtime_result, "route", None), "value", ""),
+                    "stage_latencies_ms": self.metrics.snapshot(),
                 },
             )
             return

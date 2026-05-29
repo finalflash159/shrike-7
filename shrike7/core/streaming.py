@@ -12,6 +12,7 @@ _SENTENCE_END_RE = re.compile(r"([.!?\u2026]+)(\s+|$)")
 
 StreamingEventType = Literal[
     "asr",
+    "runtime",
     "llm_token",
     "sentence",
     "tts",

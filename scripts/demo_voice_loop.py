@@ -10,11 +10,26 @@ from rich.panel import Panel
 from shrike7.asr import ASR_MODEL_REGISTRY, SpeechDetector
 from shrike7.asr.robust_asr import RobustASR
 from shrike7.asr.whisper_onnx import VietnameseASR
-from shrike7.core import EndpointConfig, SoundDevicePlayer, record_until_silence
+from shrike7.core import (
+    AssistantRuntime,
+    DefaultRuntimeToolRouter,
+    EndpointConfig,
+    RuntimeOptions,
+    SoundDevicePlayer,
+    record_until_silence,
+)
 from shrike7.core.pipeline import VoicePipeline
-from shrike7.llm import LocalLlamaCppLLM, MemoryAwareLLM
+from shrike7.knowledge import KnowledgeContextBuilder, MarkdownVaultKnowledgeSource
+from shrike7.llm import LocalLlamaCppLLM
 from shrike7.llm.registry import LLM_MODEL_REGISTRY
 from shrike7.memory import MarkdownLongTermMemory, MemoryContextBuilder, SessionMemory
+from shrike7.tools import (
+    KnowledgeReadTool,
+    KnowledgeSearchTool,
+    LocalTimerTool,
+    LocalTimeTool,
+    ToolRuntime,
+)
 from shrike7.tts import VietnameseTTS
 
 console = Console()
@@ -52,6 +67,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--session-chars", type=int, default=1300)
     parser.add_argument("--session-turns", type=int, default=6)
     parser.add_argument("--turn-chars", type=int, default=500)
+    parser.add_argument("--max-tokens", type=int, default=160)
+    parser.add_argument("--temperature", type=float, default=0.2)
+    parser.add_argument("--top-p", type=float, default=0.95)
     parser.add_argument(
         "--no-speak-rejections",
         action="store_true",
@@ -62,14 +80,29 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    args.vault = args.vault.expanduser().resolve()
 
     detector = SpeechDetector()
     asr = RobustASR(asr=VietnameseASR(model_key=args.asr_model), vad=detector)
     base_llm = LocalLlamaCppLLM(model_key=args.llm_model, n_threads=8, n_gpu_layers=-1)
-    llm = base_llm
 
     memory_status = "disabled"
-    if not args.no_memory:
+    knowledge_status = "disabled"
+    memory_builder = None
+    knowledge_builder = None
+    tools = [LocalTimeTool(), LocalTimerTool()]
+
+    if args.vault.is_dir():
+        source = MarkdownVaultKnowledgeSource(args.vault, include_globs=("wiki/**/*.md",))
+        knowledge_builder = KnowledgeContextBuilder(source)
+        tools.extend([KnowledgeSearchTool(source), KnowledgeReadTool(source)])
+        knowledge_status = f"enabled:{args.vault / 'wiki'}"
+    else:
+        knowledge_status = f"disabled:not_found:{args.vault}"
+        if not args.no_memory:
+            memory_status = f"disabled:not_found:{args.vault}"
+
+    if not args.no_memory and args.vault.is_dir():
         long_term_memory = MarkdownLongTermMemory(
             args.vault,
             max_chars=args.profile_chars,
@@ -85,13 +118,28 @@ def main(argv: Sequence[str] | None = None) -> int:
             max_chars=args.memory_chars,
             profile_chars=args.profile_chars,
         )
-        llm = MemoryAwareLLM(base_llm, memory_builder=memory_builder)
         memory_status = f"enabled:{args.vault / 'memory' / 'profile.md'}"
+
+    tool_runtime = ToolRuntime(tools)
+    assistant_runtime = AssistantRuntime(
+        llm=base_llm,
+        tool_runtime=tool_runtime,
+        tool_router=DefaultRuntimeToolRouter(
+            knowledge_search_prefixes=("wiki:", "knowledge:", "wiki ", "knowledge ")
+        ),
+        knowledge_builder=knowledge_builder,
+        memory_builder=memory_builder,
+        options=RuntimeOptions(
+            max_tokens=args.max_tokens,
+            temperature=args.temperature,
+            top_p=args.top_p,
+        ),
+    )
 
     tts = VietnameseTTS(voice=args.voice)
     player = SoundDevicePlayer()
 
-    pipeline = VoicePipeline(asr=asr, llm=llm, tts=tts)
+    pipeline = VoicePipeline(asr=asr, llm=base_llm, tts=tts, assistant_runtime=assistant_runtime)
     config = EndpointConfig(
         endpoint_silence_ms=args.endpoint_silence_ms,
         max_record_ms=args.max_record_ms,
@@ -102,6 +150,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         f"LLM={args.llm_model} voice={args.voice}"
     )
     console.print(f"[dim]Memory:[/dim] {memory_status}")
+    console.print(f"[dim]Knowledge:[/dim] {knowledge_status}")
     console.print(
         f"[dim]ASR guards:[/dim] BoH={asr.boh_status}; "
         f"confidence={asr.confidence_guard_status}"
@@ -117,6 +166,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         for event in pipeline.turn_streaming(audio, audio_sink=player):
             if event.type == "asr":
                 console.print(Panel(event.text or "<empty>", title="ASR"))
+            elif event.type == "runtime":
+                route = event.metadata.get("route") if event.metadata else ""
+                title = f"Runtime: {route}" if route else "Runtime"
+                console.print(Panel(event.text or "<empty>", title=title, border_style="blue"))
             elif event.type == "audio":
                 console.print(f"[dim]Played chunk:[/dim] {event.text}")
             elif event.type == "tts":

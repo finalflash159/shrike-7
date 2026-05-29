@@ -10,19 +10,18 @@ The project is intentionally research-heavy: every model choice is backed by sma
 
 Works today:
 
-- Local voice loop demo: `mic -> VAD endpoint -> PhoWhisper ASR -> local LLM -> Valtec TTS -> audio output`.
+- Local voice loop demo: `mic -> VAD endpoint -> PhoWhisper ASR -> AssistantRuntime -> Valtec TTS -> audio output`.
 - ASR registry for `phowhisper_tiny`, `phowhisper_base`, `phowhisper_small`, and `phowhisper_medium`.
 - RobustASR wrapper with VAD, de-looping, confidence guards, BoH matching, and hallucination heuristics.
 - llama.cpp LLM registry with PhoGPT baseline, Arcee-VyLinh candidate, Qwen low-RAM fallback, and larger research probes.
 - Valtec Vietnamese TTS wrapper with multi-speaker support.
 - Local Markdown knowledge vault, manual long-term profile memory, and RAM-only session memory.
 - ToolRuntime foundation with typed tool specs, argument validation, side-effect levels, and local tools.
-- Text-only AssistantRuntime with staged guardrails, swappable tool routing, knowledge/memory prompt assembly, citations, and trace output.
+- AssistantRuntime with staged guardrails, swappable tool routing, knowledge/memory prompt assembly, citations, trace output, and voice-loop integration.
 - CLI, smoke tests, eval scripts, and benchmark reports.
 
 Still in progress:
 
-- VoicePipeline integration with AssistantRuntime.
 - Runtime eval harnesses for tool selection, knowledge citation, and guardrail behavior.
 - ASR robustness recalibration for larger PhoWhisper models.
 - Raspberry Pi or ARM-board validation. Current numbers are Mac local measurements.
@@ -35,19 +34,20 @@ Audio input
   -> RobustASR
        -> PhoWhisper ONNX
        -> model-specific confidence / BoH guards
-  -> memory-aware LLM wrapper
-       -> manual long-term profile memory
-       -> short-term session memory
-  -> llama.cpp GGUF LLM
+  -> AssistantRuntime
+       -> guardrails
+       -> ToolRuntime for time/timer/knowledge
+       -> manual profile memory + RAM session memory
+       -> llama.cpp GGUF LLM fallback
   -> sentence chunking
   -> Valtec TTS
   -> audio output
 ```
 
-Text-only assistant-runtime layer:
+Assistant-runtime layer:
 
 ```text
-User turn
+User turn / ASR transcript
   -> guardrails
   -> knowledge retrieval when useful
   -> ToolRuntime for deterministic local actions
@@ -286,7 +286,7 @@ logs/
 
 Near-term work:
 
-- D8 voice integration: route ASR transcripts through AssistantRuntime before TTS.
+- D9 runtime eval harnesses for tool selection, citations, guardrails, and runtime overhead.
 - Recalibrate ASR robustness for the selected larger PhoWhisper model.
 - Add post-router LLM evaluation instead of sending every prompt directly to the LLM.
 - Improve streaming latency and first-audio timing.
