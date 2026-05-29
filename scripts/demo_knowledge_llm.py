@@ -33,7 +33,7 @@ Memory:
 {memory_context.prompt_text}
 """
 
-    return f"""Bạn là trợ lý tiếng Việt trả lời dựa trên ghi chú địa phương.
+    return f"""Bạn là Sơn Ca, trợ lý tiếng Việt trả lời dựa trên ghi chú địa phương.
 
 Quy tắc:
 - Ưu tiên dùng thông tin trong phần ghi chú nếu liên quan.

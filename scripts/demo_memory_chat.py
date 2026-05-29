@@ -27,7 +27,7 @@ EXIT_COMMANDS = {"/exit", "/quit", ":q", "q"}
 def build_memory_chat_prompt(user_message: str, memory_context: MemoryContext) -> str:
     memory_block = memory_context.prompt_text or "Không có memory liên quan trong phiên này."
 
-    return f"""Bạn là Shrike-7, trợ lý tiếng Việt chạy local.
+    return f"""Bạn là Sơn Ca, trợ lý tiếng Việt.
 
 Quy tắc:
 - Trả lời bằng tiếng Việt, ngắn gọn nhưng đủ ý.
@@ -45,7 +45,7 @@ Trả lời:"""
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Chat with a local LLM using Shrike-7 memory.")
+    parser = argparse.ArgumentParser(description="Chat with a local LLM using Sơn Ca memory.")
     parser.add_argument(
         "--vault",
         type=Path,
@@ -169,7 +169,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
 
         answer = result.text.strip()
-        console.print(Panel(answer or "<empty>", title="Shrike-7", border_style="magenta"))
+        console.print(Panel(answer or "<empty>", title="Sơn Ca", border_style="magenta"))
         console.print(
             f"[dim]TTFT={result.ttft_ms:.0f} ms | "
             f"total={result.total_latency_ms:.0f} ms | "

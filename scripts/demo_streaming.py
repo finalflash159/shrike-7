@@ -31,7 +31,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     console.print(f"[green]✓ Model ready:[/green] {args.llm_model}\n")
 
     console.print(f"[bold cyan]Câu hỏi: [/bold cyan] {args.prompt}\n")
-    console.print("[bold yellow]Shrike-7: [/bold yellow] ", end="")
+    console.print("[bold yellow]Sơn Ca: [/bold yellow] ", end="")
 
     t0 = time.perf_counter()
     first_token_time = None

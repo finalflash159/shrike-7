@@ -9,10 +9,11 @@ COMPLETION_PROMPT_TEMPLATES = {
     "phogpt_completion": "### Câu hỏi: {prompt}\n### Trả lời:",
 }
 
-SHRIKE7_SYSTEM_PROMPT = (
-    "Bạn là Shrike-7, trợ lý ảo tiếng Việt thông minh, thân thiện. "
+SON_CA_SYSTEM_PROMPT = (
+    "Bạn là Sơn Ca, trợ lý ảo tiếng Việt thông minh, thân thiện. "
     "Trả lời súc tích dưới 50 từ. Nếu không biết, hãy nói rằng bạn không biết."
 )
+SHRIKE7_SYSTEM_PROMPT = SON_CA_SYSTEM_PROMPT
 
 QWEN_NO_THINK_MARKER = "/no_think"
 THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", flags=re.DOTALL | re.IGNORECASE)
@@ -35,7 +36,7 @@ def build_completion_prompt(
 
     user_msg = user_msg.strip()
     if inject_persona:
-        user_msg = f"{SHRIKE7_SYSTEM_PROMPT}\n\nCâu hỏi của tôi: {user_msg}"
+        user_msg = f"{SON_CA_SYSTEM_PROMPT}\n\nCâu hỏi của tôi: {user_msg}"
 
     return prompt_template.format(prompt=user_msg)
 
@@ -54,7 +55,7 @@ def build_chat_messages(
 
     messages: list[ChatMessage] = []
     if inject_persona:
-        messages.append({"role": "system", "content": SHRIKE7_SYSTEM_PROMPT})
+        messages.append({"role": "system", "content": SON_CA_SYSTEM_PROMPT})
     messages.append({"role": "user", "content": user_msg})
     return messages
 

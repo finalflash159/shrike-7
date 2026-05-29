@@ -17,11 +17,11 @@ def test_pop_ready_sentence_returns_first_complete_sentence():
 
 def test_pop_ready_sentence_merges_short_greeting_with_next_sentence():
     sentence, rest = pop_ready_sentence(
-        "Xin chào! Tôi là Shrike-7. Tôi có thể giúp gì cho bạn?",
+        "Xin chào! Tôi là Sơn Ca. Tôi có thể giúp gì cho bạn?",
         min_chars=24,
     )
 
-    assert sentence == "Xin chào! Tôi là Shrike-7."
+    assert sentence == "Xin chào! Tôi là Sơn Ca."
     assert rest == "Tôi có thể giúp gì cho bạn?"
 
 

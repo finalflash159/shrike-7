@@ -9,7 +9,7 @@ from shrike7.memory import MemoryContext, MemoryContextBuilder
 def build_memory_prompt(user_msg: str, memory_context: MemoryContext) -> str:
     memory_block = memory_context.prompt_text or "Không có memory liên quan trong phiên này."
 
-    return f"""Bạn là Shrike-7, trợ lý tiếng Việt chạy local.
+    return f"""Bạn là Sơn Ca, trợ lý tiếng Việt.
 
 Quy tắc:
 - Trả lời bằng tiếng Việt, ngắn gọn nhưng đủ ý.

@@ -85,7 +85,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"[yellow]{llm_result.text}[/yellow]\n\n"
                 f"[dim]LLM TTFT: {llm_result.ttft_ms:.0f} ms | "
                 f"Total: {t_llm:.0f} ms | {llm_result.tokens_per_second:.1f} tok/s[/dim]",
-                title="Shrike-7 trả lời",
+                title="Sơn Ca trả lời",
                 border_style="yellow",
             )
         )
