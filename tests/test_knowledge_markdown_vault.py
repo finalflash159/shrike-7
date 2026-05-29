@@ -160,6 +160,26 @@ def test_search_results_are_sorted_by_score_then_path(tmp_path: Path):
     assert [hit.document.path for hit in hits] == ["strong.md", "a.md", "b.md"]
 
 
+def test_search_prefers_specific_metadata_without_query_stuffing(tmp_path: Path):
+    (tmp_path / "todo.md").write_text(
+        "# Todo Hôm Nay\n\n"
+        "#todo #checklist #tap-luyen #dinh-duong\n\n"
+        "Mỗi ngày nên có việc chính, sức khỏe, và check-in ngắn.",
+        encoding="utf-8",
+    )
+    (tmp_path / "nutrition.md").write_text(
+        "# Dinh Dưỡng Cho Người Tập Luyện\n\n"
+        "#nutrition #protein #tap-luyen #dinh-duong\n\n"
+        "Người tập luyện nên ưu tiên đủ đạm, rau, tinh bột phù hợp và nước.",
+        encoding="utf-8",
+    )
+
+    vault = MarkdownVaultKnowledgeSource(tmp_path)
+    hits = vault.search("todo hôm nay tập luyện dinh dưỡng")
+
+    assert [hit.document.path for hit in hits[:2]] == ["todo.md", "nutrition.md"]
+
+
 def test_search_skips_large_file(tmp_path: Path):
     (tmp_path / "large.md").write_text("PhoGPT\n" * 1000, encoding="utf-8")
 
