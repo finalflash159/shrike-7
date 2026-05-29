@@ -99,6 +99,9 @@ def test_knowledge_path_blocks_private_raw_dot_and_traversal() -> None:
         event = check_knowledge_read_path(path)
         assert event.blocked is True, path
 
+    dot_event = check_knowledge_read_path(".obsidian/app.md")
+    assert dot_event.reason == "blocked_path_part"
+
 
 def test_memory_profile_is_not_allowed_for_knowledge_read() -> None:
     event = check_knowledge_read_path("memory/profile.md")

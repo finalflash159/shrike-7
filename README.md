@@ -286,7 +286,7 @@ logs/
 
 Near-term work:
 
-- D9 runtime eval harnesses for tool selection, citations, guardrails, and runtime overhead.
+- D10 knowledge ingest/lint tooling for reviewed local wiki updates.
 - Recalibrate ASR robustness for the selected larger PhoWhisper model.
 - Add post-router LLM evaluation instead of sending every prompt directly to the LLM.
 - Improve streaming latency and first-audio timing.

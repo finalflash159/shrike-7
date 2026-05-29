@@ -162,7 +162,10 @@ def extract_markdown_paths(text: str) -> tuple[str, ...]:
 
 
 def _normalize_path(path: str) -> str:
-    return path.strip().strip("'\"`").replace("\\", "/").lstrip("./")
+    normalized = path.strip().strip("'\"`").replace("\\", "/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    return normalized
 
 
 def check_knowledge_read_path(
