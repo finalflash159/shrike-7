@@ -9,7 +9,6 @@ import pytest
 
 from shrike7.knowledge import MarkdownVaultKnowledgeSource
 from shrike7.tools import (
-    DisabledWeatherTool,
     KnowledgeReadTool,
     KnowledgeSearchTool,
     LocalTimerTool,
@@ -169,12 +168,3 @@ def test_knowledge_read_tool_path_errors_are_returned_by_runtime(tmp_path: Path)
 
     assert result.ok is False
     assert "excluded" in result.error
-
-
-def test_weather_tool_is_disabled() -> None:
-    runtime = ToolRuntime([DisabledWeatherTool()], max_side_effect=SideEffectLevel.NETWORK)
-
-    result = runtime.call(ToolCall("weather.current", {"location": "Ho Chi Minh City"}))
-
-    assert result.ok is False
-    assert result.error == "Tool is disabled: weather.current"

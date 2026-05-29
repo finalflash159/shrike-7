@@ -22,7 +22,7 @@ Works today:
 Still in progress:
 
 - Full assistant runtime policy that decides when to use knowledge, tools, memory, or free chat.
-- Production guardrails and eval harness for tool calls.
+- Guardrail integration inside the full assistant runtime, plus runtime eval harnesses.
 - ASR robustness recalibration for larger PhoWhisper models.
 - Raspberry Pi or ARM-board validation. Current numbers are Mac local measurements.
 
@@ -277,7 +277,7 @@ logs/
 
 Near-term work:
 
-- D6 assistant runtime: connect guardrails, knowledge context, memory, and ToolRuntime into one deterministic turn planner.
+- D7 assistant runtime: connect guardrails, knowledge context, memory, and ToolRuntime into one deterministic turn planner.
 - Recalibrate ASR robustness for the selected larger PhoWhisper model.
 - Add post-router LLM evaluation instead of sending every prompt directly to the LLM.
 - Improve streaming latency and first-audio timing.
