@@ -63,3 +63,18 @@ Thumbs.db
 
 zplan/
 claude_web/
+
+# Pinned lightweight voice config for the default OmniVoice persona.
+!models/
+models/*
+!models/tts/
+models/tts/*
+!models/tts/omnivoice/
+models/tts/omnivoice/*
+!models/tts/omnivoice/voices/
+models/tts/omnivoice/voices/*
+!models/tts/omnivoice/voices/emgai_dangiu_nf/
+models/tts/omnivoice/voices/emgai_dangiu_nf/*
+!models/tts/omnivoice/voices/emgai_dangiu_nf/meta.json
+!models/tts/omnivoice/voices/emgai_dangiu_nf/prompt.pt
+!models/tts/omnivoice/voices/emgai_dangiu_nf/ref.wav

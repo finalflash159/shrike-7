@@ -1,0 +1,16 @@
+{"id":"short_001","category":"short","text":"Xin chào."}
+{"id":"short_002","category":"short","text":"Mình đang sẵn sàng."}
+{"id":"short_003","category":"short","text":"Bạn muốn mình hỗ trợ gì?"}
+{"id":"coach_001","category":"coach","text":"Mình sẽ tạo checklist hôm nay cho bạn."}
+{"id":"coach_002","category":"coach","text":"Bạn nên ưu tiên một việc chính, một việc sức khỏe và một check-in ngắn."}
+{"id":"tone_001","category":"tone","text":"Hôm nay trời khá dễ chịu, nhưng bạn vẫn nên uống nước đều."}
+{"id":"safety_001","category":"safety","text":"Nếu thấy đau nhói hoặc chóng mặt, hãy dừng buổi tập."}
+{"id":"nutrition_001","category":"nutrition","text":"Bữa sau tập nên có một nguồn đạm, rau và tinh bột vừa đủ."}
+{"id":"tracking_001","category":"tracking","text":"Cân nặng một ngày có thể dao động vì nước, muối và giấc ngủ."}
+{"id":"number_001","category":"number","text":"Hẹn giờ sau 15 phút."}
+{"id":"number_002","category":"number","text":"Mục tiêu tuần này là 150 phút vận động mức vừa."}
+{"id":"number_003","category":"number","text":"Protein có thể nằm trong khoảng 1.4 đến 2.0 gam trên mỗi ki-lô-gam mỗi ngày."}
+{"id":"datetime_001","category":"datetime","text":"Lịch check-in là 7 giờ 30 tối, ngày 29 tháng 5 năm 2026."}
+{"id":"codeswitch_001","category":"codeswitch","text":"Sơn Ca có thể dùng local knowledge, tool runtime và guardrails."}
+{"id":"codeswitch_002","category":"codeswitch","text":"Nếu Wi-Fi yếu, mình vẫn có thể chạy chế độ offline."}
+{"id":"long_001","category":"long","text":"Bạn có thể bắt đầu bằng một buổi full-body ngắn gồm squat, push-up, row và plank, mỗi bài hai đến ba hiệp."}

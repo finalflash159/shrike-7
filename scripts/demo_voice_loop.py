@@ -30,7 +30,7 @@ from shrike7.tools import (
     LocalTimeTool,
     ToolRuntime,
 )
-from shrike7.tts import VietnameseTTS
+from shrike7.tts import DEFAULT_TTS_MODEL_KEY, TTS_MODEL_REGISTRY, create_tts_engine
 
 console = Console()
 
@@ -52,7 +52,17 @@ def build_parser() -> argparse.ArgumentParser:
         choices=sorted(ASR_MODEL_REGISTRY),
         help="ASR registry key to load.",
     )
-    parser.add_argument("--voice", default="NF", help="TTS voice/speaker id.")
+    parser.add_argument(
+        "--tts-model",
+        default=DEFAULT_TTS_MODEL_KEY,
+        choices=sorted(TTS_MODEL_REGISTRY),
+        help="TTS registry key to load.",
+    )
+    parser.add_argument(
+        "--voice",
+        default=None,
+        help="TTS voice/speaker id. Defaults to the selected TTS model's default voice.",
+    )
     parser.add_argument("--endpoint-silence-ms", type=int, default=700)
     parser.add_argument("--max-record-ms", type=int, default=10000)
     parser.add_argument(
@@ -136,7 +146,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         ),
     )
 
-    tts = VietnameseTTS(voice=args.voice)
+    tts_voice = args.voice or TTS_MODEL_REGISTRY[args.tts_model].default_voice
+    tts = create_tts_engine(args.tts_model, voice=tts_voice, lazy=False)
     player = SoundDevicePlayer()
 
     pipeline = VoicePipeline(asr=asr, llm=base_llm, tts=tts, assistant_runtime=assistant_runtime)
@@ -147,7 +158,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     console.print(
         f"[green]Voice loop ready[/green] ASR={args.asr_model} "
-        f"LLM={args.llm_model} voice={args.voice}"
+        f"LLM={args.llm_model} TTS={args.tts_model} voice={tts_voice}"
     )
     console.print(f"[dim]Memory:[/dim] {memory_status}")
     console.print(f"[dim]Knowledge:[/dim] {knowledge_status}")

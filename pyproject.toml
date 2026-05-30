@@ -47,6 +47,14 @@ tts = [
     "vinorm>=2.0.0",
 ]
 
+tts-piper = [
+    "piper-tts>=1.4.2,<1.5",
+]
+
+tts-omnivoice = [
+    "omnivoice>=0.1.5,<0.2",
+]
+
 [project.scripts]
 shrike-7 = "shrike7.cli:main"
 

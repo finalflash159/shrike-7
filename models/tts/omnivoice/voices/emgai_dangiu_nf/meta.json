@@ -1,0 +1,11 @@
+{
+  "voice_id": "emgai_dangiu_nf",
+  "engine": "omnivoice",
+  "model_key": "omnivoice",
+  "hf_repo": "k2-fsa/OmniVoice",
+  "source_voice": null,
+  "source_sample": "/Users/vominhthinh/Workspace/shrike-7/eval/results/examples_example_NF.wav",
+  "ref_audio": "ref.wav",
+  "ref_text": "Nếu thấy đau nhói hoặc chóng mặt, hãy dừng buổi tập.",
+  "created_at": "2026-05-29T18:32:03.936860+00:00"
+}
