@@ -14,6 +14,13 @@ from .guardrails import (
 )
 from .metrics import MetricsLogger
 from .pipeline import PipelineResult, VoicePipeline
+from .profiles import (
+    DEFAULT_VOICE_RUNTIME_PROFILE_KEY,
+    VOICE_RUNTIME_PROFILES,
+    VoiceRuntimeProfile,
+    get_voice_runtime_profile,
+    validate_voice_runtime_profiles,
+)
 from .runtime import AssistantRuntime, DefaultRuntimeToolRouter, RuntimeOptions, RuntimeToolRouter
 from .streaming import StreamingEvent, pop_ready_sentence
 from .text_chunking import split_sentences
@@ -53,4 +60,9 @@ __all__ = [
     "split_sentences",
     "StreamingEvent",
     "pop_ready_sentence",
+    "DEFAULT_VOICE_RUNTIME_PROFILE_KEY",
+    "VOICE_RUNTIME_PROFILES",
+    "VoiceRuntimeProfile",
+    "get_voice_runtime_profile",
+    "validate_voice_runtime_profiles",
 ]

@@ -11,11 +11,14 @@ from shrike7.asr import ASR_MODEL_REGISTRY, SpeechDetector
 from shrike7.asr.robust_asr import RobustASR
 from shrike7.asr.whisper_onnx import VietnameseASR
 from shrike7.core import (
+    DEFAULT_VOICE_RUNTIME_PROFILE_KEY,
+    VOICE_RUNTIME_PROFILES,
     AssistantRuntime,
     DefaultRuntimeToolRouter,
     EndpointConfig,
     RuntimeOptions,
     SoundDevicePlayer,
+    get_voice_runtime_profile,
     record_until_silence,
 )
 from shrike7.core.pipeline import VoicePipeline
@@ -30,41 +33,44 @@ from shrike7.tools import (
     LocalTimeTool,
     ToolRuntime,
 )
-from shrike7.tts import DEFAULT_TTS_MODEL_KEY, TTS_MODEL_REGISTRY, create_tts_engine
+from shrike7.tts import TTS_MODEL_REGISTRY, create_tts_engine
 
 console = Console()
-
-DEFAULT_VOICE_LOOP_ASR_MODEL_KEY = "phowhisper_small"
-DEFAULT_VOICE_LOOP_LLM_MODEL_KEY = "arcee_vylinh_3b_q4_k_m"
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run the local Shrike-7 voice loop.")
     parser.add_argument(
+        "--profile",
+        default=DEFAULT_VOICE_RUNTIME_PROFILE_KEY,
+        choices=sorted(VOICE_RUNTIME_PROFILES),
+        help="Voice runtime profile to use before explicit model overrides.",
+    )
+    parser.add_argument(
         "--llm-model",
-        default=DEFAULT_VOICE_LOOP_LLM_MODEL_KEY,
+        default=None,
         choices=sorted(LLM_MODEL_REGISTRY),
-        help="LLM registry key to load.",
+        help="Override the LLM registry key from the selected profile.",
     )
     parser.add_argument(
         "--asr-model",
-        default=DEFAULT_VOICE_LOOP_ASR_MODEL_KEY,
+        default=None,
         choices=sorted(ASR_MODEL_REGISTRY),
-        help="ASR registry key to load.",
+        help="Override the ASR registry key from the selected profile.",
     )
     parser.add_argument(
         "--tts-model",
-        default=DEFAULT_TTS_MODEL_KEY,
+        default=None,
         choices=sorted(TTS_MODEL_REGISTRY),
-        help="TTS registry key to load.",
+        help="Override the TTS registry key from the selected profile.",
     )
     parser.add_argument(
         "--voice",
         default=None,
-        help="TTS voice/speaker id. Defaults to the selected TTS model's default voice.",
+        help="Override the TTS voice/speaker id from the selected profile.",
     )
-    parser.add_argument("--endpoint-silence-ms", type=int, default=700)
-    parser.add_argument("--max-record-ms", type=int, default=10000)
+    parser.add_argument("--endpoint-silence-ms", type=int, default=None)
+    parser.add_argument("--max-record-ms", type=int, default=None)
     parser.add_argument(
         "--vault",
         type=Path,
@@ -77,9 +83,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--session-chars", type=int, default=1300)
     parser.add_argument("--session-turns", type=int, default=6)
     parser.add_argument("--turn-chars", type=int, default=500)
-    parser.add_argument("--max-tokens", type=int, default=160)
-    parser.add_argument("--temperature", type=float, default=0.2)
-    parser.add_argument("--top-p", type=float, default=0.95)
+    parser.add_argument("--max-tokens", type=int, default=None)
+    parser.add_argument("--temperature", type=float, default=None)
+    parser.add_argument("--top-p", type=float, default=None)
     parser.add_argument(
         "--no-speak-rejections",
         action="store_true",
@@ -88,8 +94,35 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def resolve_runtime_args(args: argparse.Namespace) -> argparse.Namespace:
+    profile = get_voice_runtime_profile(args.profile)
+    resolved_tts_model = args.tts_model or profile.tts_model
+
+    args.asr_model = args.asr_model or profile.asr_model
+    args.llm_model = args.llm_model or profile.llm_model
+    args.tts_model = resolved_tts_model
+
+    if args.voice is not None:
+        args.voice = args.voice
+    elif resolved_tts_model == profile.tts_model:
+        args.voice = profile.voice or TTS_MODEL_REGISTRY[resolved_tts_model].default_voice
+    else:
+        args.voice = TTS_MODEL_REGISTRY[resolved_tts_model].default_voice
+
+    args.endpoint_silence_ms = (
+        args.endpoint_silence_ms
+        if args.endpoint_silence_ms is not None
+        else profile.endpoint_silence_ms
+    )
+    args.max_record_ms = args.max_record_ms if args.max_record_ms is not None else profile.max_record_ms
+    args.max_tokens = args.max_tokens if args.max_tokens is not None else profile.max_tokens
+    args.temperature = args.temperature if args.temperature is not None else profile.temperature
+    args.top_p = args.top_p if args.top_p is not None else profile.top_p
+    return args
+
+
 def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    args = resolve_runtime_args(build_parser().parse_args(argv))
     args.vault = args.vault.expanduser().resolve()
 
     detector = SpeechDetector()
@@ -146,7 +179,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         ),
     )
 
-    tts_voice = args.voice or TTS_MODEL_REGISTRY[args.tts_model].default_voice
+    tts_voice = args.voice
     tts = create_tts_engine(args.tts_model, voice=tts_voice, lazy=False)
     player = SoundDevicePlayer()
 
@@ -157,7 +190,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
 
     console.print(
-        f"[green]Voice loop ready[/green] ASR={args.asr_model} "
+        f"[green]Voice loop ready[/green] profile={args.profile} ASR={args.asr_model} "
         f"LLM={args.llm_model} TTS={args.tts_model} voice={tts_voice}"
     )
     console.print(f"[dim]Memory:[/dim] {memory_status}")
