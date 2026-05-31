@@ -73,8 +73,8 @@ models/tts/*
 models/tts/omnivoice/*
 !models/tts/omnivoice/voices/
 models/tts/omnivoice/voices/*
-!models/tts/omnivoice/voices/emgai_dangiu_nf/
-models/tts/omnivoice/voices/emgai_dangiu_nf/*
-!models/tts/omnivoice/voices/emgai_dangiu_nf/meta.json
-!models/tts/omnivoice/voices/emgai_dangiu_nf/prompt.pt
-!models/tts/omnivoice/voices/emgai_dangiu_nf/ref.wav
+!models/tts/omnivoice/voices/emgai_dangiu/
+models/tts/omnivoice/voices/emgai_dangiu/*
+!models/tts/omnivoice/voices/emgai_dangiu/meta.json
+!models/tts/omnivoice/voices/emgai_dangiu/prompt.pt
+!models/tts/omnivoice/voices/emgai_dangiu/preview.wav
